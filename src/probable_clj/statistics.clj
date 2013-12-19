@@ -7,17 +7,16 @@
   "Computes the mean of a sequence of numbers."
   [coll]
   (let [n (count coll)]
-    (-> (reduce + coll) (/ n))))
+    (/ (reduce + coll) n)))
 
 (defn variance
   "Computes the variance of a sequence of numbers."
   [coll]
   (let [n (count coll)
-        sum (reduce + coll)
-        sqr-sum (->> (map #(* % %) coll)
-                     (reduce +))
-        mean-sum-sqr (/ n (* sum sum))]
-    (/ (dec n) (- sqr-sum mean-sum-sqr))))
+        m (mean coll)
+        x (map #(- % m) coll)
+        x2 (map #(* % %) x)]
+    (/ (reduce + x2) n )))
 
 (defn stddev
   "Computes the standard deviation of a sequence of numbers."
@@ -42,6 +41,6 @@
 ;(summary gaussian)
 
 ;(println "\nChi-Squared")
-;(def chi-sqr (d/chi-squared 6 500000))
+;(def chi-sqr (d/dist :chi2 10000 1))
 ;(time (summary chi-sqr))
-;;(println (d/prob-dist chi-sqr (d/between? 1.95 2.05)))
+;(println (d/prob-dist chi-sqr (d/between? 1.95 2.05)))
