@@ -40,11 +40,11 @@
 (def MIN_DOUBLE java.lang.Double/MIN_VALUE)
 
 (def DistType (s/enum :int :long :uniform :gaussian :boolean :bernoulli
-                      :exponential :pareto )); :geometric :chi-squared))
+                      :exponential :pareto :discrete-uniform)); :geometric :chi-squared))
 
 ;; Simple distributions, vis a vis how complex the code for generating them is
 (def simple #{:int :long :uniform :gaussian :boolean :bernoulli
-              :exponential :pareto })
+              :exponential :pareto :discrete-uniform})
 
 (defn bool->int [bool] (if bool 1 0))
 
@@ -81,7 +81,11 @@
       :exponential (* (/ -1 dist-param) (Math/log (sample :uniform)))
 
       :pareto (* 1.0 (Math/pow (sample :uniform) (/ -1 dist-param)))
-      ;
+
+      ;; here, the parameter will be a tuple of ints [low high] (inclusive)
+      :discrete-uniform (let [[low high] dist-param
+                              domain (into [] (range low (inc high)))]
+                          (rand-nth domain))
       ;:geometric (let [partial-bernoulli (partial dist :bernoulli 10000)
       ;                 bernoulli-list (repeatedly numberOfSamples #(partial-bernoulli dist-param))
       ;                 trials (map #(inc (.indexOf % 1)) bernoulli-list)
@@ -173,6 +177,28 @@
   convert one distribution into another."
   [fn dist-seq] (map fn dist-seq))
 
+(s/defn repeat-dist
+  "Returns a collection of a collection of values drawn from a distribution.
+  This is probably most useful for a discrete distribution."
+  [dist-type :- DistType
+   numberOfSamples :- s/Int
+   & [parameter predicate]]
+  (let [dist-param (if (nil? parameter) (get default-dist-params dist-type 1) parameter)
+        sampler (if (nil? predicate)
+                  (partial sample)
+                  (partial sample-given predicate))]
+    (repeatedly numberOfSamples #(generate sampler dist-type numberOfSamples dist-param))))
+
+;(println "Repeat Uniform: " (repeat-dist :uniform 2))
+;(println "6-sided die: " (dist :discrete-uniform 10 [1 6]))
+
+(defn die-6 [n-rolls]
+  (let [die (partial dist :discrete-uniform)]
+    (-> n-rolls
+        (die [1 6]))))
+
+;(println "6-sided die fn: " (die-6 10))
+
 ;(doall (println (map-dist #(* % %) (dist :int 20 3))))
 ;(doall (println (map-dist #(< % 0) (dist :gaussian 20))))
 
@@ -185,22 +211,22 @@
 ;  (-> (filter predicate-fn (dist dist-type numberOfSamples))
 ;      count
 ;      (/ (.doubleValue numberOfSamples))))
-;
+;;
 ;(s/defn prob-d
 ;  "Returns the probability that a random variable drawn from the sample
-;  distribution dist-sample obeys the predicate. Uses 100,000 samples."
+;  distribution dist-sample obeys the predicate. Uses 10,000 samples."
 ;  [dist-type :- DistType
 ;   predicate-fn]
-;  (prob dist-type predicate-fn 100000))
-;
-;(s/defn prob-given
-;  "Returns the probability that a random variable drawn from the sample
-;  distribution dist-sample obeys the predicate."
-;  [dist-seq
-;   predicate-fn]
-;  (-> (filter predicate-fn dist-seq)
-;      count
-;      (/ (.doubleValue (count dist-seq)))))
+;  (prob dist-type predicate-fn 10000))
+
+(s/defn prob
+  "Returns the probability that a random variable drawn from the sample
+  distribution dist-sample obeys the predicate."
+  [dist-seq
+   predicate-fn]
+  (-> (filter predicate-fn dist-seq)
+      count
+      (/ (.doubleValue (count dist-seq)))))
 
 (defn between?
   "Probability that a random variable is between low and high"
@@ -208,31 +234,8 @@
   (fn [x] (and (>= x low)
                (<= x high))))
 
-;(defn given
-;  "Returns random variables from a given distribution, that fulfill the predicate.
-;  This is another way of transforming a distribution."
-;  [dist-seq
-;   predicate-fn]
-;  (filter predicate-fn dist-seq))
+(println (prob (die-6 100) #(= % 4)))
 
-;(s/defn dist-given
-;  "Returns random variables from a given distribution, absent those that don't fulfill the predicate."
-;  [dist-type :- DistType
-;   numberOfSamples :- s/Int
-;   predicate-fn]
-;  (filter predicate-fn (dist dist-type numberOfSamples)))
-
-
-;(s/defn my-repeat
-;  [numberOfRepeats :- s/Int
-;   dist-type :- DistType
-;   numberOfSamples :- s/Int
-;   & [parameter]]
-;  (let [dist-param (if (nil? parameter) (get default-dist-params dist-type 1) parameter)
-;        partial-dist (partial dist dist-type numberOfSamples)]
-;    (repeatedly numberOfRepeats #(partial-dist dist-param))))
-
-;(println (uniform-dist :int 5 5))
 
 ;(s/defn geometric
 ;  [p :- s/Number
