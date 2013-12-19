@@ -1,6 +1,7 @@
 (ns probable-clj.distributions
   (:import (java.util Random))
-  (:require [schema.core :as s]))
+  (:require [schema.core :as s])
+  (:use [clojure.set :only (difference)]))
 
 ;;; The idea here is to implement probability distributions in a way
 ;;; that will allow one to do probabilistic calculations in an almost
@@ -82,10 +83,8 @@
 
       :pareto (* 1.0 (Math/pow (sample :uniform) (/ -1 dist-param)))
 
-      ;; here, the parameter will be a tuple of ints [low high] (inclusive)
-      :discrete-uniform (let [[low high] dist-param
-                              domain (into [] (range low (inc high)))]
-                          (rand-nth domain))
+      ;; here, the parameter will be a vector of ints
+      :discrete-uniform (rand-nth dist-param)
       ;:geometric (let [partial-bernoulli (partial dist :bernoulli 10000)
       ;                 bernoulli-list (repeatedly numberOfSamples #(partial-bernoulli dist-param))
       ;                 trials (map #(inc (.indexOf % 1)) bernoulli-list)
@@ -121,21 +120,6 @@
       (take numberOfSamples (repeatedly #(sampler dist-type dist-param)))
       (throw (IllegalArgumentException. (str "Distribution type " dist-type " is not defined in dist"))))
     ;(case dist-type
-    ;  :int (take numberOfSamples (repeatedly #(sampler :int dist-param)))
-    ;  :long (take numberOfSamples (repeatedly #(sampler :long dist-param)))
-    ;
-    ;  ; doubles between 0.0 and 1.0
-    ;  :uniform (take numberOfSamples (repeatedly #(sampler :uniform dist-param)))
-    ;  :gaussian (take numberOfSamples (repeatedly #(sampler :gaussian dist-param)))
-    ;
-    ;  ; produces true with probability dist-param
-    ;  :boolean (take numberOfSamples (repeatedly #(sampler :boolean dist-param)))
-    ;
-    ;  ; bernoulli distribution with success probability dist-param
-    ;  :bernoulli (take numberOfSamples (repeatedly #(sampler :bernoulli dist-param)))
-    ;
-    ;  :exponential (take numberOfSamples (repeatedly #(sampler :exponential dist-param)))
-    ;  :pareto (take numberOfSamples (repeatedly #(sampler :pareto dist-param)))
     ;
     ;  ;:geometric (let [partial-bernoulli (partial dist :bernoulli 10000)
     ;  ;                 bernoulli-list (repeatedly numberOfSamples #(partial-bernoulli dist-param))
@@ -190,15 +174,67 @@
     (repeatedly numberOfSamples #(generate sampler dist-type numberOfSamples dist-param))))
 
 ;(println "Repeat Uniform: " (repeat-dist :uniform 2))
-;(println "6-sided die: " (dist :discrete-uniform 10 [1 6]))
+
+(s/defn prob
+  "Returns the probability that a random variable drawn from the sample
+  distribution dist-sample obeys the predicate."
+  [dist-seq
+   predicate-fn]
+  (-> (filter predicate-fn dist-seq)
+      count
+      (/ (.doubleValue (count dist-seq)))))
+
+(defn between?
+  "Probability that a random variable is between low and high"
+  [low high]
+  (fn [x] (and (>= x low)
+               (<= x high))))
+
+;;; Specific, novelty distributions:
+;;;  6-sided die
+;;;  pair of 6-sided dice
+;;;  N-door Monty Hall problem (one prize)
 
 (defn die-6 [n-rolls]
-  (let [die (partial dist :discrete-uniform)]
+  (let [die (partial dist :discrete-uniform)
+        sides (into #{} (range 1 7))]
     (-> n-rolls
         (die [1 6]))))
 
-;(println "6-sided die fn: " (die-6 10))
+(defn dice [n-rolls]
+  (let [[a b] [(vec (die-6 n-rolls)) (vec (die-6 n-rolls))]]
+    (map + a b)))
 
+;(println "6-sided die: " (die-6 10))
+;(println (vec (die-6 5)))
+;(println "two 6-sided dies: " (dice 10))
+
+(defn monty-hall [num-doors]
+  "N-door Monty Hall distribution.
+  Return pairs of (door of prize, whether you switched"
+  (let [doors (into [] (range 1 (inc num-doors)))
+        prize-door (sample :discrete-uniform doors) ; prize placed behind a door at random
+        chosen-door (sample :discrete-uniform doors) ; you choose one of the doors at random
+        unselected-doors (vec (difference (set doors) #{prize-door} #{chosen-door}))
+        opened-door (sample :discrete-uniform unselected-doors) ; Monty Hall chooses one of the other doors
+        switch (sample :discrete-uniform (vec (difference (set doors) #{chosen-door} #{opened-door})))]
+    [prize-door switch]))
+
+;(def doors [1 2 3])
+;(def prize-door (sample :discrete-uniform doors))
+;(def chosen-door (sample :discrete-uniform doors))
+;(println prize-door)
+;(println chosen-door)
+;(println (into #{} (.intValue prize-door)))
+;(println (into #{} chosen-door))
+;(def  unselected-doors (vec (difference (set doors)
+;                                        (set prize-door)
+;                                        (set chosen-door))))
+;(def opened-door (sample :discrete-uniform unselected-doors))
+;
+;(println (monty-hall 3))
+(defn switching-wins? [[prize switch]] (= prize switch))
+;(println "Prob. of winning Monty Hall Game by switching: " (prob (repeatedly 1000 #(monty-hall 3)) switching-wins?))
 ;(doall (println (map-dist #(* % %) (dist :int 20 3))))
 ;(doall (println (map-dist #(< % 0) (dist :gaussian 20))))
 
@@ -219,23 +255,10 @@
 ;   predicate-fn]
 ;  (prob dist-type predicate-fn 10000))
 
-(s/defn prob
-  "Returns the probability that a random variable drawn from the sample
-  distribution dist-sample obeys the predicate."
-  [dist-seq
-   predicate-fn]
-  (-> (filter predicate-fn dist-seq)
-      count
-      (/ (.doubleValue (count dist-seq)))))
 
-(defn between?
-  "Probability that a random variable is between low and high"
-  [low high]
-  (fn [x] (and (>= x low)
-               (<= x high))))
 
-(println (prob (die-6 100) #(= % 4)))
-
+(println "Prob of rolling a 4 on a 6-sided die: " (prob (die-6 10000) #(= % 4)))
+(println "Prob of rolling a 4 on a pair of 6-sided dice: " (prob (dice 10000) #(= % 4)))
 
 ;(s/defn geometric
 ;  [p :- s/Number
