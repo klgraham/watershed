@@ -10,13 +10,19 @@
     (/ (reduce + coll) n)))
 
 (defn variance
-  "Computes the variance of a sequence of numbers."
+  "Computes the variance of a sequence of numbers. There should not be issues
+  with numerical stability here. See http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+  for more info. This is the compensated-summation algorithm for the variance."
   [coll]
   (let [n (count coll)
         m (mean coll)
-        x (map #(- % m) coll)
-        x2 (map #(* % %) x)]
-    (/ (reduce + x2) n )))
+        sqr (fn [x] (* x x))
+        x-m (map #(- % m) coll)
+        x-m2 (map sqr x-m)
+        sum1 (reduce + x-m)
+        sum2 (reduce + x-m2)
+        s (-> (sqr sum1) (/ n))]
+    (-> (- sum2 s) (/ (dec n)))))
 
 (defn stddev
   "Computes the standard deviation of a sequence of numbers."
@@ -34,7 +40,7 @@
     (println "Variance: " sigma2)))
 
 ;(println "\nGaussian")
-;(def gaussian (d/dist :gaussian 10000))
+;(def gaussian (d/dist :normal 10000))
 ;(println "Gaussian mean: " (mean gaussian))
 ;(println "Gaussian stddev: " (stddev gaussian))
 ;(println "Gaussian variance: " (variance gaussian))
