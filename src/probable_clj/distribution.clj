@@ -21,13 +21,25 @@
   [] (UniformDistribution. (new Random)))
 
 ;(def u (Uniform. (new Random)))
-;(def u (uniform))
-;(def uu (.sample u 5))
-;(println uu)
+(def u (uniform))
+(def uu (.sample u 5))
+(println uu)
 ;(def uu1 (map (fn [x] (inc x)) uu))
 ;(println uu1)
 
-;; Distribution with random variables uniformly distributed on [0,1].
+;; Distribution with random variables normally distributed on (-infinity, inifinity).
+;; Has mean 0 and variance 1.
+(s/defrecord StandardNormalDistribution
+             [r :- Random]
+  Distribution
+  (sample [this] (.nextGaussian r))
+  (sample [this n] (into [] (repeatedly n #(.sample this)))))
+
+(s/defn normal
+  "Factory function to create a StandardNormalDistribution"
+  [] (StandardNormalDistribution. (new Random)))
+
+;; Distribution with random true/false variables, with probability p of being true.
 (s/defrecord TrueFalseDistribution
   [r :- Random
    p :- Double]
@@ -42,6 +54,10 @@
 ;(def tf (true-false 0.2))
 ;(println (.sample tf 5))
 
+;; Distribution with random 1/0 variables, with probability p of being 1.
+;; 1 == hit/win
+;; 0 == miss/loss
+;; p == probability of a hit/win
 (s/defrecord BernoulliDistribution
   [r :- Random
    p :- Double]
@@ -54,5 +70,17 @@
   "Factory function to create a BernoulliDistribution"
   [p :- Double] (BernoulliDistribution. (new Random) p))
 
-;(def bern (bernoulli 0.5))
-;(println (.sample bern 5))
+(def bern (bernoulli 0.5))
+(println (.sample bern 5))
+
+(s/defrecord ExponentialDistribution
+  [r :- Random
+   p :- Double]
+  Distribution
+  (sample [this] (* (/ -1 p) (Math/log (.nextDouble r))))
+  (sample [this n] (into [] (repeatedly n #(.sample this)))))
+
+(s/defn exponential
+  "Factory function to create a ExponentialDistribution"
+  [p :- Double] (ExponentialDistribution. (new Random) p))
+
