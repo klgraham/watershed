@@ -41,11 +41,11 @@
 (def MIN_DOUBLE java.lang.Double/MIN_VALUE)
 
 (def DistType (s/enum :int :long :uniform :normal :boolean :bernoulli
-                      :exponential :pareto :discrete-uniform :chi2 :students-t)); :geometric))
+                      :exponential :pareto :discrete-uniform :chi2 :students-t :cauchy)); :geometric))
 
 ;; Simple distributions, vis a vis how complex the code for generating them is
 (def simple #{:int :long :uniform :normal :boolean :bernoulli
-              :exponential :pareto :discrete-uniform :chi2 :students-t})
+              :exponential :pareto :discrete-uniform :chi2 :students-t :cauchy})
 
 (defn bool->int [bool] (if bool 1 0))
 
@@ -93,6 +93,17 @@
                         v (sample :chi2 k)
                         denom (Math/sqrt (/ v k))]
                     (/ z denom))
+
+      :cauchy (let [theta (* (- (.nextDouble r) 0.5) Math/PI)]
+                (Math/tan theta))
+
+      ;cauchy() {
+      ;
+      ;           // return a value from the cauchy distribution
+      ;                 // this is distributed Cauchy(1,0)
+      ;
+      ;           return(tan(PI*(randomfl() - 0.5)));
+      ;           }
 
       ;; here, the parameter will be a vector of ints
       :discrete-uniform (rand-nth dist-param)
