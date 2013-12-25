@@ -23,7 +23,8 @@
   (sample-given [this predicate?]
                 (let [a (.sample this)]
                   (if (predicate? a) a (sample-given this predicate?))))
-  (given [this predicate? n] (into [] (repeatedly n #(.sample-given this predicate?)))))
+  (given [this predicate? n]
+         (into [] (repeatedly n #(.sample-given this predicate?)))))
 
 (defn uniform
   "Factory function to create a UniformDistribution"
@@ -33,7 +34,8 @@
 (def u (uniform))
 ;(def uu (.sample u 5))
 ;(println uu)
-(def u-pos (.given u #(< % 0.2) 5))
+(def u-pos (-> u (.given #(< % 0.2) 5)))
+;(def u-pos (.given u #(< % 0.2) 5))
 ;(def uu1 (map (fn [x] (inc x)) uu))
 (println u-pos)
 
@@ -43,7 +45,12 @@
              [r :- Random]
   Distribution
   (sample [this] (.nextGaussian r))
-  (sample [this n] (into [] (repeatedly n #(.sample this)))))
+  (sample [this n] (into [] (repeatedly n #(.sample this))))
+  (sample-given [this predicate?]
+                (let [a (.sample this)]
+                  (if (predicate? a) a (sample-given this predicate?))))
+  (given [this predicate? n]
+         (into [] (repeatedly n #(.sample-given this predicate?)))))
 
 (s/defn normal
   "Factory function to create a StandardNormalDistribution"
@@ -55,7 +62,11 @@
    p :- Double]
   Distribution
   (sample [this] (< (.nextDouble r) p))
-  (sample [this n] (into [] (repeatedly n #(.sample this)))))
+  (sample [this n] (into [] (repeatedly n #(.sample this))))
+  (sample-given [this predicate?]
+                (let [a (.sample this)]
+                  (if (predicate? a) a (sample-given this predicate?))))
+  (given [this predicate? n] (into [] (repeatedly n #(.sample-given this predicate?)))))
 
 (s/defn true-false
   "Factory function to create a TrueFalseDistribution"
@@ -74,7 +85,11 @@
   Distribution
   (sample [this] (let [b (< (.nextDouble r) p)]
                    (if b 1 0)))
-  (sample [this n] (into [] (repeatedly n #(.sample this)))))
+  (sample [this n] (into [] (repeatedly n #(.sample this))))
+  (sample-given [this predicate?]
+                (let [a (.sample this)]
+                  (if (predicate? a) a (sample-given this predicate?))))
+  (given [this predicate? n] (into [] (repeatedly n #(.sample-given this predicate?)))))
 
 (s/defn bernoulli
   "Factory function to create a BernoulliDistribution"
@@ -88,7 +103,11 @@
    p :- Double]
   Distribution
   (sample [this] (* (/ -1 p) (Math/log (.nextDouble r))))
-  (sample [this n] (into [] (repeatedly n #(.sample this)))))
+  (sample [this n] (into [] (repeatedly n #(.sample this))))
+  (sample-given [this predicate?]
+                (let [a (.sample this)]
+                  (if (predicate? a) a (sample-given this predicate?))))
+  (given [this predicate? n] (into [] (repeatedly n #(.sample-given this predicate?)))))
 
 (s/defn exponential
   "Factory function to create a ExponentialDistribution"
