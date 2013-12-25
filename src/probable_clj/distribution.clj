@@ -113,3 +113,18 @@
   "Factory function to create a ExponentialDistribution"
   [p :- Double] (ExponentialDistribution. (new Random) p))
 
+;; Distribution with random inte uniformly distributed on [0,p].
+(s/defrecord DiscreteUniformDistribution
+  [p :- s/Int]
+  Distribution
+  (sample [this] (rand-nth p))
+  (sample [this n] (into [] (repeatedly n #(.sample this))))
+  (sample-given [this predicate?]
+                (let [a (.sample this)]
+                  (if (predicate? a) a (sample-given this predicate?))))
+  (given [this predicate? n]
+         (into [] (repeatedly n #(.sample-given this predicate?)))))
+
+(defn discrete-uniform
+  "Factory function to create a DiscreteUniformDistribution"
+  [] (DiscreteUniformDistribution.))
