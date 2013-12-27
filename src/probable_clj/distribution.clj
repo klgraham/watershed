@@ -4,7 +4,7 @@
   (:require [schema.core :as s]))
 
 ;;;; Probability distribution and the functions that operate on them
-; todo: Only have (sample) inside Distribution protocol; the rest just functions
+; todo: Only have (sample [this]) inside Distribution protocol; the rest just functions
 ; todo: combine the predicate? in given into sample: (.sample u 10 :given pred?)
 (defprotocol Distribution
   "Basic specification for a probability distribution"
@@ -16,14 +16,26 @@
   (given [this predicate?] [this predicate? n]
          "Returns a vector of n values that fulfill the predicate."))
 
+;(defn prob
+;  "Returns the probability that a random variable drawn from the sample
+;  distribution dist-sample obeys the predicate."
+;  [dist-seq
+;   predicate?]
+;  (-> (filter predicate? dist-seq)
+;      count
+;      (/ (.doubleValue (count dist-seq)))))
+
 (s/defn prob
   "Returns the probability that a random variable drawn from the sample
-  distribution dist-sample obeys the predicate."
-  [dist-seq
-   predicate-fn]
-  (-> (filter predicate-fn dist-seq)
-      count
-      (/ (.doubleValue (count dist-seq)))))
+   distribution dist-sample obeys the predicate. Defaults to 10,000 samples."
+  [dist
+   predicate? & [number-of-samples]]
+  (let [samples (if (nil? number-of-samples) 10000 number-of-samples)
+        d (.sample dist samples)
+        n (count d)]
+    (-> (filter predicate? d)
+        count
+        (/ (.doubleValue n)))))
 
 ;; Distribution with random variables uniformly distributed on [0,1].
 (s/defrecord UniformDistribution
@@ -43,13 +55,13 @@
   [] (UniformDistribution. (new Random)))
 
 ;(def u (Uniform. (new Random)))
-(def u (uniform))
+;(def u (uniform))
 ;(def uu (.sample u 5))
 ;(println uu)
-(def u-pos (-> u (.given #(< % 0.2) 5)))
+;(def u-pos (-> u (.given #(< % 0.2) 5)))
 ;(def u-pos (.given u #(< % 0.2) 5))
 ;(def uu1 (map (fn [x] (inc x)) uu))
-(println u-pos)
+;(println u-pos)
 
 ;; Distribution with random variables normally distributed on (-\inf, \inf).
 ;; Has mean 0 and variance 1.
@@ -172,3 +184,5 @@
    high :- s/Number]
   (fn [x] (and (>= x low)
                (<= x high))))
+
+(s/defn eq? [y :- s/Number] (fn [x] (= x y)))
