@@ -3,16 +3,27 @@
            (java.lang Double))
   (:require [schema.core :as s]))
 
-;; Basic specification of a probability distribution
+;;;; Probability distribution and the functions that operate on them
+; todo: Only have (sample) inside Distribution protocol; the rest just functions
+; todo: combine the predicate? in given into sample: (.sample u 10 :given pred?)
 (defprotocol Distribution
-  "Basic interface for a probability distribution"
+  "Basic specification for a probability distribution"
   (sample [this] [this n]
           "Draws one or n values from the distribution.
           Returns either a single value or a vector of values.")
   (sample-given [this predicate?]
          "Returns a value that fulfills the predicate.")
-  (given [this predicate? n]
+  (given [this predicate?] [this predicate? n]
          "Returns a vector of n values that fulfill the predicate."))
+
+(s/defn prob
+  "Returns the probability that a random variable drawn from the sample
+  distribution dist-sample obeys the predicate."
+  [dist-seq
+   predicate-fn]
+  (-> (filter predicate-fn dist-seq)
+      count
+      (/ (.doubleValue (count dist-seq)))))
 
 ;; Distribution with random variables uniformly distributed on [0,1].
 (s/defrecord UniformDistribution
@@ -24,7 +35,8 @@
                 (let [a (.sample this)]
                   (if (predicate? a) a (sample-given this predicate?))))
   (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?)))))
+         (into [] (repeatedly n #(.sample-given this predicate?))))
+  (given [this predicate?] (given this predicate? 10000)))
 
 (defn uniform
   "Factory function to create a UniformDistribution"
@@ -39,7 +51,7 @@
 ;(def uu1 (map (fn [x] (inc x)) uu))
 (println u-pos)
 
-;; Distribution with random variables normally distributed on (-infinity, inifinity).
+;; Distribution with random variables normally distributed on (-\inf, \inf).
 ;; Has mean 0 and variance 1.
 (s/defrecord StandardNormalDistribution
              [r :- Random]
@@ -50,7 +62,8 @@
                 (let [a (.sample this)]
                   (if (predicate? a) a (sample-given this predicate?))))
   (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?)))))
+         (into [] (repeatedly n #(.sample-given this predicate?))))
+  (given [this predicate?] (given this predicate? 10000)))
 
 (s/defn normal
   "Factory function to create a StandardNormalDistribution"
@@ -66,7 +79,9 @@
   (sample-given [this predicate?]
                 (let [a (.sample this)]
                   (if (predicate? a) a (sample-given this predicate?))))
-  (given [this predicate? n] (into [] (repeatedly n #(.sample-given this predicate?)))))
+  (given [this predicate? n]
+         (into [] (repeatedly n #(.sample-given this predicate?))))
+  (given [this predicate?] (given this predicate? 10000)))
 
 (s/defn true-false
   "Factory function to create a TrueFalseDistribution"
@@ -89,7 +104,9 @@
   (sample-given [this predicate?]
                 (let [a (.sample this)]
                   (if (predicate? a) a (sample-given this predicate?))))
-  (given [this predicate? n] (into [] (repeatedly n #(.sample-given this predicate?)))))
+  (given [this predicate? n]
+         (into [] (repeatedly n #(.sample-given this predicate?))))
+  (given [this predicate?] (given this predicate? 10000)))
 
 (s/defn bernoulli
   "Factory function to create a BernoulliDistribution"
@@ -107,7 +124,9 @@
   (sample-given [this predicate?]
                 (let [a (.sample this)]
                   (if (predicate? a) a (sample-given this predicate?))))
-  (given [this predicate? n] (into [] (repeatedly n #(.sample-given this predicate?)))))
+  (given [this predicate? n]
+         (into [] (repeatedly n #(.sample-given this predicate?))))
+  (given [this predicate?] (given this predicate? 10000)))
 
 (s/defn exponential
   "Factory function to create a ExponentialDistribution"
@@ -123,8 +142,33 @@
                 (let [a (.sample this)]
                   (if (predicate? a) a (sample-given this predicate?))))
   (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?)))))
+         (into [] (repeatedly n #(.sample-given this predicate?))))
+  (given [this predicate?] (given this predicate? 10000)))
 
-(defn discrete-uniform
+(s/defn discrete-uniform
   "Factory function to create a DiscreteUniformDistribution"
-  [] (DiscreteUniformDistribution.))
+  [n :- s/Int] (DiscreteUniformDistribution. n))
+
+;; Useful predicates
+(s/defn gt? "Is x greater than y?"
+  [y :- s/Number]
+  (fn [x] (> x y)))
+
+(s/defn gteq? "Is x greater than or equal to y?"
+  [y :- s/Number]
+  (fn [x] (>= x y)))
+
+(s/defn lt? "Is x less than y?"
+  [y :- s/Number]
+  (fn [x] (< x y)))
+
+(s/defn lteq? "Is x less than or equal to y?"
+  [y :- s/Number]
+  (fn [x] (<= x y)))
+
+(s/defn between?
+  "Is x in [low, high]"
+  [low :- s/Number
+   high :- s/Number]
+  (fn [x] (and (>= x low)
+               (<= x high))))
