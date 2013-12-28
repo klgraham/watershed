@@ -41,16 +41,14 @@
   (into [] (repeatedly n #(.flip coin))))
 
 (s/defn prob :- Double
-  "Returns the probability that a random variable drawn from the sample
-   distribution dist-sample obeys the predicate. Defaults to 10,000 samples."
+  "Returns the probability that a random variable drawn from the
+   distribution obeys the predicate. Defaults to 10,000 samples."
   [dist :- clojure.lang.PersistentVector
    predicate? & [number-of-samples]]
   (let [samples (if (nil? number-of-samples) 10000 number-of-samples)
         d (sample dist samples)
         n (count d)]
-    (-> (filter predicate? d)
-        count
-        (/ (.doubleValue n)))))
+    (-> (filter predicate? d) count (.doubleValue) (/ n))))
 
 ;; Useful predicates
 (s/defn gt? "Is x greater than y?"

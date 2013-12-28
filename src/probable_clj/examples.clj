@@ -5,9 +5,6 @@
 ;;;;;  * general probability distribution calculations
 ;;;;;  * probabilistic graphical models
 
-;;;; These examples use the code that doesn't just use functions,
-;;;; but also uses protocols and factor functions
-
 (def norm (normal))
 (println "Sampling the Standard Normal distribution between +/-1:\n" (-> norm (given (between? -1 1) 5)))
 (println "Prob. of values between +/- 1: " (prob norm (between? -1 1)))
