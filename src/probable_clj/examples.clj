@@ -9,13 +9,13 @@
 ;;;; but also uses protocols and factor functions
 
 (def norm (normal))
-(println "Sampling the Standard Normal distribution between +/-1:\n" (-> norm (.given (between? -1 1) 5)))
+(println "Sampling the Standard Normal distribution between +/-1:\n" (-> norm (given (between? -1 1) 5)))
 (println "Prob. of values between +/- 1: " (prob norm (between? -1 1)))
 (println "Prob. of values between +/- 2: " (prob norm (between? -2 2)))
 (println "Prob. of values between +/- 3: " (prob norm (between? -3 3)))
 (println "Prob. of values between +/- 4: " (prob norm (between? -4 4)))
 (println "Prob. of values between +/- 5: " (prob norm (between? -5 5)))
-(println "Only generate samples with values > 1.5" (-> norm (.given (gt? 1.5) 10)))
+(println "Only generate samples with values > 1.5" (-> norm (given (gt? 1.5) 10)))
 
 (println "\nIf win prob. is 20%, what is the prob of a win in 10000 Bernoulli trials?")
 (println (prob (bernoulli 0.2) (eq? 1)))
@@ -42,10 +42,16 @@
 
 ;; Coin tosses
 (def fair-coin (coin))
-(println "\n10 rolls of a fair coin: " (.flip fair-coin 10))
+(println "\n10 rolls of a fair coin: " (flip fair-coin 10))
 (println "Frequency of heads (empirically): " (prob fair-coin (eq? 'H)))
 
 (def unfair-coin (biased-coin 0.3))
-(println "\n10 rolls of a unfair coin: " (.flip unfair-coin 10))
+(println "\n10 rolls of a unfair coin: " (flip unfair-coin 10))
 (println "Prob of heads (theoretically): " (:p unfair-coin))
 (println "Frequency of heads (empirically): " (prob unfair-coin (eq? 'H)))
+
+;;; generating multiple sets of samples of a distribution
+;(def five-coins (repeatedly 5 #(.flip fair-coin 5)))
+;(println "5 fair coins:" five-coins)
+;(doall (map println five-coins))
+;(doall (mapcat #(into [] %) five-coins))

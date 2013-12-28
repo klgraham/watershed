@@ -4,40 +4,49 @@
   (:require [schema.core :as s]))
 
 ;;;; Probability distribution and the functions that operate on them
-; todo: See if it's possible to only have (sample [this]) inside Distribution protocol. Want less redundancy
-; todo: combine the predicate? in given into sample: (.sample u 10 :given pred?)
+; todo: combine the predicate? in given into sample: (sample u 10 :given pred?)
 (defprotocol Distribution
   "Basic specification for a probability distribution"
-  (sample [this] [this n]
-          "Draws one or n values from the distribution.
-          Returns either a single value or a vector of values.")
-  (sample-given [this predicate?]
-         "Returns a value that fulfills the predicate.")
-  (given [this predicate?] [this predicate? n]
-         "Returns a vector of n values that fulfill the predicate."))
+  (sample [this] "Draws a single value from the distribution."))
 
 (defprotocol Coin
   "Basic functions for simulating coin tosses."
-  (flip [this] [this n]
-        "Flips a coin once, returning 'H or 'T, or
-        flips a coin n times, returning a vector."))
+  (flip [this]
+        "Flips a coin once, returning 'H or 'T"))
 
-;(defn prob
-;  "Returns the probability that a random variable drawn from the sample
-;  distribution dist-sample obeys the predicate."
-;  [dist-seq
-;   predicate?]
-;  (-> (filter predicate? dist-seq)
-;      count
-;      (/ (.doubleValue (count dist-seq)))))
+(s/defn sample :- clojure.lang.PersistentVector
+  "Draws n values from the distribution."
+  [dist :- Distribution
+   n :- s/Int]
+  (into [] (repeatedly n #(.sample dist))))
 
-(s/defn prob
+(s/defn sample-given
+  "Draw a value from the distribution that fulfills the predicate."
+  [dist :- Distribution
+   predicate?]
+  (let [a (.sample dist)]
+    (if (predicate? a) a (sample-given dist predicate?))))
+
+(s/defn given :- clojure.lang.PersistentVector
+  "Returns a vector of n values that fulfill the predicate."
+  [dist :- Distribution
+   predicate?
+   n :- s/Int]
+  (into [] (repeatedly n #(sample-given dist predicate?))))
+
+(s/defn flip :- clojure.lang.PersistentVector
+  "Draws n values from the distribution."
+  [coin :- Coin
+   n :- s/Int]
+  (into [] (repeatedly n #(.flip coin))))
+
+(s/defn prob :- Double
   "Returns the probability that a random variable drawn from the sample
    distribution dist-sample obeys the predicate. Defaults to 10,000 samples."
   [dist :- clojure.lang.PersistentVector
    predicate? & [number-of-samples]]
   (let [samples (if (nil? number-of-samples) 10000 number-of-samples)
-        d (.sample dist samples)
+        d (sample dist samples)
         n (count d)]
     (-> (filter predicate? d)
         count
@@ -73,16 +82,9 @@
 (s/defrecord UniformDistribution
   [r :- Random]
   Distribution
-  (sample [this] (.nextDouble r))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
-  (sample-given [this predicate?]
-                (let [a (.sample this)]
-                  (if (predicate? a) a (.sample-given this predicate?))))
-  (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?))))
-  (given [this predicate?] (.given this predicate? 10000)))
+  (sample [this] (.nextDouble r)))
 
-(defn uniform
+(s/defn uniform :- UniformDistribution
   "Factory function to create a UniformDistribution"
   [] (UniformDistribution. (new Random)))
 
@@ -100,16 +102,9 @@
 (s/defrecord StandardNormalDistribution
              [r :- Random]
   Distribution
-  (sample [this] (.nextGaussian r))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
-  (sample-given [this predicate?]
-                (let [a (.sample this)]
-                  (if (predicate? a) a (.sample-given this predicate?))))
-  (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?))))
-  (given [this predicate?] (.given this predicate? 10000)))
+  (sample [this] (.nextGaussian r)))
 
-(s/defn normal
+(s/defn normal :- StandardNormalDistribution
   "Factory function to create a StandardNormalDistribution"
   [] (StandardNormalDistribution. (new Random)))
 
@@ -118,16 +113,9 @@
   [r :- Random
    p :- Double]
   Distribution
-  (sample [this] (< (.nextDouble r) p))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
-  (sample-given [this predicate?]
-                (let [a (.sample this)]
-                  (if (predicate? a) a (.sample-given this predicate?))))
-  (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?))))
-  (given [this predicate?] (.given this predicate? 10000)))
+  (sample [this] (< (.nextDouble r) p)))
 
-(s/defn true-false
+(s/defn true-false :- TrueFalseDistribution
   "Factory function to create a TrueFalseDistribution"
   [p :- Double] (TrueFalseDistribution. (new Random) p))
 
@@ -142,17 +130,9 @@
   [r :- Random
    p :- Double]
   Distribution
-  (sample [this] (let [b (< (.nextDouble r) p)]
-                   (if b 1 0)))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
-  (sample-given [this predicate?]
-                (let [a (.sample this)]
-                  (if (predicate? a) a (.sample-given this predicate?))))
-  (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?))))
-  (given [this predicate?] (.given this predicate? 10000)))
+  (sample [this] (if (< (.nextDouble r) p) 1 0)))
 
-(s/defn bernoulli
+(s/defn bernoulli :- BernoulliDistribution
   "Factory function to create a BernoulliDistribution"
   [p :- Double] (BernoulliDistribution. (new Random) p))
 
@@ -163,16 +143,9 @@
   [r :- Random
    p :- Double]
   Distribution
-  (sample [this] (* (/ -1 p) (Math/log (.nextDouble r))))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
-  (sample-given [this predicate?]
-                (let [a (.sample this)]
-                  (if (predicate? a) a (.sample-given this predicate?))))
-  (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?))))
-  (given [this predicate?] (.given this predicate? 10000)))
+  (sample [this] (* (/ -1 p) (Math/log (.nextDouble r)))))
 
-(s/defn exponential
+(s/defn exponential :- ExponentialDistribution
   "Factory function to create a ExponentialDistribution"
   [p :- Double] (ExponentialDistribution. (new Random) p))
 
@@ -181,16 +154,9 @@
   [low :- s/Int
    high :- s/Int]
   Distribution
-  (sample [this] (rand-nth (range low (inc high))))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
-  (sample-given [this predicate?]
-                (let [a (.sample this)]
-                  (if (predicate? a) a (.sample-given this predicate?))))
-  (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?))))
-  (given [this predicate?] (.given this predicate? 10000)))
+  (sample [this] (rand-nth (range low (inc high)))))
 
-(s/defn discrete-uniform
+(s/defn discrete-uniform :- DiscreteUniformDistribution
   "Factory function to create a DiscreteUniformDistribution"
   [low :- s/Int
    high :- s/Int] (DiscreteUniformDistribution. low high))
@@ -206,10 +172,9 @@
     (let [r (range low (inc high))
           one (rand-nth r)
           two (rand-nth r)]
-      (+ one two)))
-  (sample [this n] (into [] (repeatedly n #(.sample this)))))
+      (+ one two))))
 
-(s/defn dice
+(s/defn dice :- PairOfNSidedDice
   "Factory function to create a DiscreteUniformDistribution"
   [low :- s/Int
    high :- s/Int] (PairOfNSidedDice. low high))
@@ -217,26 +182,23 @@
 ; A fair coin, produces values 'H or 'T
 (s/defrecord CoinDistribution [r :- Random]
   Distribution
-  (sample [this] (if (> (.nextDouble r) 0.5) 'H 'T))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
+  (sample [this] (if (< (.nextDouble r) 0.5) 'H 'T))
 
   Coin
-  (flip [this] (.sample this))
-  (flip [this n] (.sample this n)))
+  (flip [this] (.sample this)))
 
-(s/defn coin [] (CoinDistribution. (new Random)))
+(s/defn coin :- CoinDistribution
+  [] (CoinDistribution. (new Random)))
 
 ;; A biased coin, with probability p of coming up heads.
 (s/defrecord BiasedCoinDistribution [r :- Random p :- Double]
   Distribution
   (sample [this] (if (< (.nextDouble r) p) 'H 'T))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
 
   Coin
-  (flip [this] (.sample this))
-  (flip [this n] (.sample this n)))
+  (flip [this] (.sample this)))
 
-(s/defn biased-coin
+(s/defn biased-coin :- BiasedCoinDistribution
   "Factory function to create a BiasedCoinDistribution"
   [p :- Double] (BiasedCoinDistribution. (new Random) p))
 
