@@ -1,6 +1,9 @@
 (ns probable-clj.examples
-  (:use [probable-clj.distribution]))
+  (:use [probable-clj.distribution]
+        [clojure.core.match :only (match)])
+  (:require [schema.core :as s]))
 
+;todo: See how to import a record from a different ns that is defined with s/defn
 ;;;;; Contains examples of how to use probable-clj for:
 ;;;;;  * general probability distribution calculations
 ;;;;;  * probabilistic graphical models
@@ -47,8 +50,67 @@
 (println "Prob of heads (theoretically): " (:p unfair-coin))
 (println "Frequency of heads (empirically): " (prob unfair-coin (eq? 'H)))
 
-;;; generating multiple sets of samples of a distribution
-;(def five-coins (repeatedly 5 #(.flip fair-coin 5)))
-;(println "5 fair coins:" five-coins)
-;(doall (map println five-coins))
-;(doall (mapcat #(into [] %) five-coins))
+;;; Probabilisic graphical model test. We'll use the same example as in
+;;; http://jliszka.github.io/2013/12/18/bayesian-networks-and-causality.html
+
+;; constants for priors
+(def p-rush 0.2)
+(def p-weather 0.05)
+(def p-accident-bad-weather 0.3)
+(def p-accident-good-weather 0.1)
+(def p-sirens-accident 0.9)
+(def p-sirens-no-accident 0.2)
+(def p-rwa 0.9)
+
+;; priors
+(def rush-hour (true-false p-rush))
+(def bad-weather (true-false p-weather))
+
+;; conditionals
+(s/defn accident
+  [weather-is-bad :- Boolean]
+  (if weather-is-bad
+    (true-false p-accident-bad-weather)
+    (true-false p-accident-good-weather)))
+
+(s/defn sirens
+  [accident :- Boolean]
+  (if accident
+    (true-false p-sirens-accident)
+    (true-false p-sirens-no-accident)))
+
+(s/defn traffic-jam
+  [rush-hour bad-weather accident]
+  (match [rush-hour bad-weather accident]
+         [true true _] (true-false p-rwa)
+         [true _ true] (true-false p-rwa)
+         [_ true true] (true-false p-rwa)
+         [true false false] (true-false 0.5)
+         [false true false] (true-false 0.3)
+         [false false false] (true-false 0.6)
+         [false false false]  (true-false 0.1)))
+
+;(println "accident   : " (sample accident 10))
+;(println "sirens     : " (sample sirens 10))
+;(println "traffic jam: " (sample traffic 10))
+
+(s/defrecord TrafficJam
+             [rush-hour :- Boolean
+              bad-weather :- Boolean
+              accident :- Boolean
+              sirens :- Boolean
+              traffic-jam :- Boolean])
+
+;; todo: cannot currently compose distributions in a straightforward way. fixme
+;(defn traffic
+;  []
+;  (loop [r rush-hour
+;         w bad-weather
+;         a accident
+;         s sirens
+;         t traffic-jam
+;         table []]
+;    (if (and (empty? r) (empty? w))
+;      table
+;      (recur (rest r) (rest w) (rest a) (rest s) (rest t)
+;             (conj table (TrafficJam. (first r) (first w) (first a) (first s) (first t)))))))
