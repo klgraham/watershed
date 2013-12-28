@@ -39,3 +39,13 @@
 (println "Prob of rolling a 10: " (prob pair (eq? 10)))
 (println "Prob of rolling a 12: " (prob pair (eq? 12)))
 (println "Prob of rolling a 1-12: " (prob pair (between? 1 12)))
+
+;; Coin tosses
+(def fair-coin (coin))
+(println "\n10 rolls of a fair coin: " (.flip fair-coin 10))
+(println "Frequency of heads (empirically): " (prob fair-coin (eq? 'H)))
+
+(def unfair-coin (biased-coin 0.3))
+(println "\n10 rolls of a unfair coin: " (.flip unfair-coin 10))
+(println "Prob of heads (theoretically): " (:p unfair-coin))
+(println "Frequency of heads (empirically): " (prob unfair-coin (eq? 'H)))

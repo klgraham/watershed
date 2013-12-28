@@ -4,7 +4,7 @@
   (:require [schema.core :as s]))
 
 ;;;; Probability distribution and the functions that operate on them
-; todo: Only have (sample [this]) inside Distribution protocol; the rest just functions
+; todo: See if it's possible to only have (sample [this]) inside Distribution protocol. Want less redundancy
 ; todo: combine the predicate? in given into sample: (.sample u 10 :given pred?)
 (defprotocol Distribution
   "Basic specification for a probability distribution"
@@ -15,6 +15,12 @@
          "Returns a value that fulfills the predicate.")
   (given [this predicate?] [this predicate? n]
          "Returns a vector of n values that fulfill the predicate."))
+
+(defprotocol Coin
+  "Basic functions for simulating coin tosses."
+  (flip [this] [this n]
+        "Flips a coin once, returning 'H or 'T, or
+        flips a coin n times, returning a vector."))
 
 ;(defn prob
 ;  "Returns the probability that a random variable drawn from the sample
@@ -28,7 +34,7 @@
 (s/defn prob
   "Returns the probability that a random variable drawn from the sample
    distribution dist-sample obeys the predicate. Defaults to 10,000 samples."
-  [dist
+  [dist :- clojure.lang.PersistentVector
    predicate? & [number-of-samples]]
   (let [samples (if (nil? number-of-samples) 10000 number-of-samples)
         d (.sample dist samples)
@@ -201,15 +207,36 @@
           one (rand-nth r)
           two (rand-nth r)]
       (+ one two)))
-  (sample [this n] (into [] (repeatedly n #(.sample this))))
-  (sample-given [this predicate?]
-                (let [a (.sample this)]
-                  (if (predicate? a) a (.sample-given this predicate?))))
-  (given [this predicate? n]
-         (into [] (repeatedly n #(.sample-given this predicate?))))
-  (given [this predicate?] (.given this predicate? 10000)))
+  (sample [this n] (into [] (repeatedly n #(.sample this)))))
 
 (s/defn dice
   "Factory function to create a DiscreteUniformDistribution"
   [low :- s/Int
    high :- s/Int] (PairOfNSidedDice. low high))
+
+; A fair coin, produces values 'H or 'T
+(s/defrecord CoinDistribution [r :- Random]
+  Distribution
+  (sample [this] (if (> (.nextDouble r) 0.5) 'H 'T))
+  (sample [this n] (into [] (repeatedly n #(.sample this))))
+
+  Coin
+  (flip [this] (.sample this))
+  (flip [this n] (.sample this n)))
+
+(s/defn coin [] (CoinDistribution. (new Random)))
+
+;; A biased coin, with probability p of coming up heads.
+(s/defrecord BiasedCoinDistribution [r :- Random p :- Double]
+  Distribution
+  (sample [this] (if (< (.nextDouble r) p) 'H 'T))
+  (sample [this n] (into [] (repeatedly n #(.sample this))))
+
+  Coin
+  (flip [this] (.sample this))
+  (flip [this n] (.sample this n)))
+
+(s/defn biased-coin
+  "Factory function to create a BiasedCoinDistribution"
+  [p :- Double] (BiasedCoinDistribution. (new Random) p))
+
