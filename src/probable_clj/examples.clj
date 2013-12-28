@@ -12,7 +12,7 @@
 (println "Prob. of values between +/- 3: " (prob norm (between? -3 3)))
 (println "Prob. of values between +/- 4: " (prob norm (between? -4 4)))
 (println "Prob. of values between +/- 5: " (prob norm (between? -5 5)))
-(println "Only generate samples with values > 1.5" (-> norm (given (gt? 1.5) 10)))
+(println "Only generate samples with values > 1.5" (-> norm (given (gt? 1.5) 5)))
 
 (println "\nIf win prob. is 20%, what is the prob of a win in 10000 Bernoulli trials?")
 (println (prob (bernoulli 0.2) (eq? 1)))
