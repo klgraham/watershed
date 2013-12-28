@@ -8,7 +8,7 @@ not done anything with the histogram visualization as yet.
 
 ## Usage
 
-Look at the code in distributions.clj. There are straightforward examples.
+Look at the code in examples.clj.
 
 ## License
 
