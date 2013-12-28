@@ -78,6 +78,8 @@
 
 (s/defn eq? [y :- s/Number] (fn [x] (= x y)))
 
+;;;; Implementations of specific distributions
+
 ;; Distribution with random variables uniformly distributed on [0,1].
 (s/defrecord UniformDistribution
   [r :- Random]
@@ -87,15 +89,6 @@
 (s/defn uniform :- UniformDistribution
   "Factory function to create a UniformDistribution"
   [] (UniformDistribution. (new Random)))
-
-;(def u (Uniform. (new Random)))
-;(def u (uniform))
-;(def uu (.sample u 5))
-;(println uu)
-;(def u-pos (-> u (.given #(< % 0.2) 5)))
-;(def u-pos (.given u #(< % 0.2) 5))
-;(def uu1 (map (fn [x] (inc x)) uu))
-;(println u-pos)
 
 ;; Distribution with random variables normally distributed on (-\inf, \inf).
 ;; Has mean 0 and variance 1.
@@ -119,9 +112,6 @@
   "Factory function to create a TrueFalseDistribution"
   [p :- Double] (TrueFalseDistribution. (new Random) p))
 
-;(def tf (true-false 0.2))
-;(println (.sample tf 5))
-
 ;; Distribution with random 1/0 variables, with probability p of being 1.
 ;; 1 == hit/win
 ;; 0 == miss/loss
@@ -136,9 +126,6 @@
   "Factory function to create a BernoulliDistribution"
   [p :- Double] (BernoulliDistribution. (new Random) p))
 
-;(def bern (bernoulli 0.5))
-;(println (.sample bern 5))
-
 (s/defrecord ExponentialDistribution
   [r :- Random
    p :- Double]
@@ -149,7 +136,7 @@
   "Factory function to create a ExponentialDistribution"
   [p :- Double] (ExponentialDistribution. (new Random) p))
 
-;; Distribution with random inte uniformly distributed on [low, high].
+;; Distribution with random int uniformly distributed on [low, high].
 (s/defrecord DiscreteUniformDistribution
   [low :- s/Int
    high :- s/Int]
