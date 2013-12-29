@@ -1,6 +1,6 @@
 (ns probable-clj.examples
-  (:use [probable-clj.distribution]
-        [clojure.core.match :only (match)])
+  (:import (java.lang Boolean))
+  (:use [probable-clj.distribution])
   (:require [schema.core :as s]))
 
 ;todo: See how to import a record from a different ns that is defined with s/defn
@@ -18,9 +18,7 @@
 (println "Only generate samples with values > 1.5" (-> norm (given (gt? 1.5) 5)))
 
 (println "\nIf win prob. is 20%, what is the prob of a win in 10000 Bernoulli trials?")
-(println (prob (bernoulli 0.2) (eq? 1)))
-(println "\nWhat about in 1000 Bernoulli trials?")
-(println (prob (bernoulli 0.2) (eq? 1) 1000))
+(println (prob (bernoulli 0.2) (eq? 1)) :samples 10000)
 
 ;; Rolling the dice: Composing distributions to obtain others
 ;; 6-sided die
@@ -50,67 +48,43 @@
 (println "Prob of heads (theoretically): " (:p unfair-coin))
 (println "Frequency of heads (empirically): " (prob unfair-coin (eq? 'H)))
 
-;;; Probabilisic graphical model test. We'll use the same example as in
-;;; http://jliszka.github.io/2013/12/18/bayesian-networks-and-causality.html
+;;; Probabilisic graphical model examples.
+(println "\n*******************")
+(println "*** PGM examples ***")
+(println "*******************\n")
 
-;; constants for priors
-(def p-rush 0.2)
-(def p-weather 0.05)
-(def p-accident-bad-weather 0.3)
-(def p-accident-good-weather 0.1)
-(def p-sirens-accident 0.9)
-(def p-sirens-no-accident 0.2)
-(def p-rwa 0.9)
+;;; Here is a schematic for the model. The notation is as follows:
+;;; {:x [] :y [:x]} means:
+;;; 1) x has no dependencies => P(x)
+;;; 2) y depends on x => P(y|x)
+;;;
+;;; If this is not clear, then try this:
+;;;
+;;;         X -> Y
 
-;; priors
-(def rush-hour (true-false p-rush))
-(def bad-weather (true-false p-weather))
+;(doall (map println (sample (academics) 5)))
+(println "What is the probability of getting a scholarship if grades are poor?")
+(println (prob (academics) #(= true (:scholarship %)) :given? #(= false (:grades %))))
 
-;; conditionals
-(s/defn accident
-  [weather-is-bad :- Boolean]
-  (if weather-is-bad
-    (true-false p-accident-bad-weather)
-    (true-false p-accident-good-weather)))
+(println "What is the probability of getting a scholarship if not smart?")
+(println (prob (academics) #(= true (:scholarship %)) :given? #(= false (:smart %))))
 
-(s/defn sirens
-  [accident :- Boolean]
-  (if accident
-    (true-false p-sirens-accident)
-    (true-false p-sirens-no-accident)))
+(println "What is the probability of getting a scholarship if not smart and have bad grades?")
+(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:grades %)) (= false (:smart %)))))
 
-(s/defn traffic-jam
-  [rush-hour bad-weather accident]
-  (match [rush-hour bad-weather accident]
-         [true true _] (true-false p-rwa)
-         [true _ true] (true-false p-rwa)
-         [_ true true] (true-false p-rwa)
-         [true false false] (true-false 0.5)
-         [false true false] (true-false 0.3)
-         [false false false] (true-false 0.6)
-         [false false false]  (true-false 0.1)))
+(println "What is the probability of getting a scholarship if affluent?")
+(println (prob (academics) #(= true (:scholarship %)) :given? #(= true (:affluent %))))
 
-;(println "accident   : " (sample accident 10))
-;(println "sirens     : " (sample sirens 10))
-;(println "traffic jam: " (sample traffic 10))
+(println "What is the probability of getting a scholarship if grades are good but is poor?")
+(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:affluent %)) (= true (:grades %)))))
 
-(s/defrecord TrafficJam
-             [rush-hour :- Boolean
-              bad-weather :- Boolean
-              accident :- Boolean
-              sirens :- Boolean
-              traffic-jam :- Boolean])
+(println "\n*** Traffic Jam example ***\n")
+(s/defn truth [k :- s/required-key]
+  (fn [x] (= true (k x))))
 
-;; todo: cannot currently compose distributions in a straightforward way. fixme
-;(defn traffic
-;  []
-;  (loop [r rush-hour
-;         w bad-weather
-;         a accident
-;         s sirens
-;         t traffic-jam
-;         table []]
-;    (if (and (empty? r) (empty? w))
-;      table
-;      (recur (rest r) (rest w) (rest a) (rest s) (rest t)
-;             (conj table (TrafficJam. (first r) (first w) (first a) (first s) (first t)))))))
+(println (prob (traffic) (truth :traffic-jam) :given? (truth :bad-weather) :samples 100000))
+;(println (prob (traffic) (truth :traffic-jam) :given? (and (truth :bad-weather) (truth :sirens)) :samples 10000))
+(println (prob (traffic) #(= true (:accident %)) :given? (and (truth :bad-weather) (truth :traffic-jam)) :samples 10000))
+;(println (prob (traffic) #(= true (:accident %)) :given? (truth :traffic-jam) :samples 10000))
+;(println (traffic-dist 2))
+;;(println (let [d (filter #() (traffic-dist 10))]))
