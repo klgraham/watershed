@@ -16,37 +16,46 @@
   (flip [this]
         "Flips a coin once, returning 'H or 'T"))
 
+(defn flatten2
+  "Like `clojure.core/flatten` but better, stronger, faster.
+  Takes any nested combination of sequential things (lists, vectors,
+  etc.) and returns their contents as a single, flat, lazy sequence.
+  If the argument is non-sequential (numbers, maps, strings, nil,
+  etc.), returns the original argument."
+  {:static true}
+  [x]
+  (letfn [(flat [coll]
+                (lazy-seq
+                  (when-let [c (seq coll)]
+                    (let [x (first c)]
+                      (if (sequential? x)
+                        (concat (flat x) (flat (rest c)))
+                        (cons x (flat (rest c))))))))]
+    (if (sequential? x) (flat x) x)))
+
 (s/defn sample :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
   [dist :- Distribution
    n :- s/Int]
-  (let [n-samples (into [] (repeatedly n #(.sample dist)))
-        nested-samples? (vector? (first n-samples))]
-    (if nested-samples?
-      (into [] (mapcat #(into [] %) n-samples))
-      n-samples)))
-
-(s/defn sample-given
-  "Draw a value from the distribution that fulfills the predicate."
-  [dist :- Distribution
-   predicate?]
-  (let [x (.sample dist)
-        nested-results? (vector? x)
-        a (if nested-results?
-            (rand-nth (into [] (mapcat #(into [] %) x)))
-            x)]
-    (if (predicate? a) a (sample-given dist predicate?))))
+  (->> (repeatedly n #(.sample dist))
+       flatten2
+       (into [])))
 
 (s/defn given :- clojure.lang.PersistentVector
   "Returns a vector of n values that fulfill the predicate."
   [dist :- Distribution
    predicate?
    n :- s/Int]
-  (let [n-samples (into [] (repeatedly n #(sample-given dist predicate?)))
-        nested-samples? (vector? (first n-samples))]
-    (if nested-samples?
-      (into [] (mapcat #(into [] %) n-samples))
-      n-samples)))
+  (let [candidates (repeatedly #(.sample dist))
+        filter-nils (fn [coll] (filter #(not (nil? %)) coll))]
+    (loop [c candidates
+           samples []]
+      (if (= n (count (filter-nils samples)))
+        (into [] (filter-nils samples))
+        (recur (rest c)
+               (if (predicate? (first c))
+                 (conj samples (first c))
+                 (conj samples nil)))))))
 
 (s/defn flip :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
@@ -333,12 +342,23 @@
       (swap! dist conj (traffic-map rush-hour bad-weather a s t)))
     (deref dist)))
 
+;(s/defn traffic-dist
+;  [rush-hour :- Boolean
+;   bad-weather :- Boolean
+;   n :- s/Int]
+;  (let [dist (atom [])]
+;    (doseq [a (sample (accident bad-weather) n)
+;            s (sample (sirens a) n)
+;            t (sample (traffic-jam rush-hour bad-weather a) n)]
+;      (swap! dist conj (traffic-map rush-hour bad-weather a s t)))
+;    (deref dist)))
+
 (s/defrecord TrafficDistribution []
   Distribution
   (sample [this]
           (let [r (.sample (rush-hour))
                 w (.sample (bad-weather))]
-            (traffic-dist r w 2))))
+            (traffic-dist r w 5))))
 
 (s/defn traffic [] (TrafficDistribution.))
 
