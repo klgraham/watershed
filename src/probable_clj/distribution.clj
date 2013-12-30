@@ -20,13 +20,21 @@
   "Draws n values from the distribution."
   [dist :- Distribution
    n :- s/Int]
-  (into [] (repeatedly n #(.sample dist))))
+  (let [n-samples (into [] (repeatedly n #(.sample dist)))
+        nested-samples? (vector? (first n-samples))]
+    (if nested-samples?
+      (into [] (mapcat #(into [] %) n-samples))
+      n-samples)))
 
 (s/defn sample-given
   "Draw a value from the distribution that fulfills the predicate."
   [dist :- Distribution
    predicate?]
-  (let [a (.sample dist)]
+  (let [x (.sample dist)
+        nested-results? (vector? x)
+        a (if nested-results?
+            (rand-nth (into [] (mapcat #(into [] %) x)))
+            x)]
     (if (predicate? a) a (sample-given dist predicate?))))
 
 (s/defn given :- clojure.lang.PersistentVector
@@ -34,7 +42,11 @@
   [dist :- Distribution
    predicate?
    n :- s/Int]
-  (into [] (repeatedly n #(sample-given dist predicate?))))
+  (let [n-samples (into [] (repeatedly n #(sample-given dist predicate?)))
+        nested-samples? (vector? (first n-samples))]
+    (if nested-samples?
+      (into [] (mapcat #(into [] %) n-samples))
+      n-samples)))
 
 (s/defn flip :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
@@ -194,6 +206,7 @@
   "Factory function to create a BiasedCoinDistribution"
   [p :- Double] (BiasedCoinDistribution. (new Random) p))
 
+;;;
 ;;; Probabilisic graphical model example.
 
 ;;; Here is a schematic for the model. The notation is as follows:
@@ -205,11 +218,11 @@
 ;;;
 ;;;         X -> Y
 
-(def pgm {:smart []
-          :grades [:smart]
-          :affluent []
-          :high-sat [:smart :affluent :grades]
-          :scholarship [:grades :high-sat]})
+;(def pgm {:smart []
+;          :grades [:smart]
+;          :affluent []
+;          :high-sat [:smart :affluent :grades]
+;          :scholarship [:grades :high-sat]})
 
 (def p-smart 0.4)
 (def p-affluent 0.2)
@@ -305,26 +318,69 @@
          [false false true] (true-false 0.6)
          [false false false]  (true-false 0.1)))
 
+(defn traffic-map
+  [r w a s t]
+  {:rush-hour r :bad-weather w :accident a :sirens s :traffic-jam t})
+
+(s/defn traffic-dist
+  [rush-hour :- Boolean
+   bad-weather :- Boolean
+   n :- s/Int]
+  (let [dist (atom [])]
+    (doseq [a (sample (accident bad-weather) n)
+            s (sample (sirens a) n)
+            t (sample (traffic-jam rush-hour bad-weather a) n)]
+      (swap! dist conj (traffic-map rush-hour bad-weather a s t)))
+    (deref dist)))
+
 (s/defrecord TrafficDistribution []
   Distribution
   (sample [this]
           (let [r (.sample (rush-hour))
-                w (.sample (bad-weather))
-                a (.sample (accident w))
-                s (.sample (sirens a))
-                t (.sample (traffic-jam r w a))]
-            {:rush-hour r :bad-weather w :accident a
-             :sirens s :traffic-jam t})))
+                w (.sample (bad-weather))]
+            (traffic-dist r w 2))))
 
 (s/defn traffic [] (TrafficDistribution.))
 
-(defn traffic-dist [n]
+;; Another example from http://www.cs.ubc.ca/~murphyk/Bayes/bnintro.html
+(s/defn cloudy :- TrueFalseDistribution
+  [] (true-false 0.5))
+
+(s/defn sprinkler :- TrueFalseDistribution
+  [cloudy :- Boolean]
+  (if cloudy
+    (true-false 0.1)
+    (true-false 0.5)))
+
+(s/defn rain :- TrueFalseDistribution
+  [cloudy :- Boolean]
+  (if cloudy
+    (true-false 0.8)
+    (true-false 0.2)))
+
+(s/defn wet-grass :- TrueFalseDistribution
+  [sprinkler :- Boolean
+   rain :- Boolean]
+  (match [sprinkler rain]
+         [true true] (true-false 0.99)
+         [true false] (true-false 0.9)
+         [false true] (true-false 0.9)
+         [false false] (true-false 0.0)))
+
+(s/defn grass-dist
+  [cloudy :- Boolean
+   n :- s/Int]
   (let [dist (atom [])]
-    (doseq [r (sample (rush-hour) n)
-            w (sample (bad-weather) n)
-            a (sample (accident w) n)
-            s (sample (sirens a) n)
-            t (sample (traffic-jam r w a) n)]
-      (swap! dist conj {:rush-hour r :bad-weather w :accident a
-                        :sirens s :traffic-jam t}))
+    (doseq [s (sample (sprinkler cloudy) n)
+            r (sample (rain cloudy) n)
+            w (sample (wet-grass s r) n)]
+      (swap! dist conj {:cloudy cloudy :sprinkler s :rain r :wet-grass w}))
     (deref dist)))
+
+(s/defrecord GrassDistribution []
+  Distribution
+  (sample [this]
+          (let [c (.sample (cloudy))]
+            (grass-dist c 2))))
+
+(s/defn grass [] (GrassDistribution.))
