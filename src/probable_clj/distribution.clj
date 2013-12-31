@@ -68,8 +68,7 @@
   (let [num-samples (if pgm? 2000 10000)
         fresh-coll (if pgm? {} [])]
     (->> (sample dist num-samples)
-         (filter predicate?)
-         ;(take n)
+         (r/filter predicate?)
          (into fresh-coll))))
 
 (s/defn flip :- clojure.lang.PersistentVector
@@ -78,7 +77,6 @@
    n :- s/Int]
   (into [] (repeatedly n #(.flip coin))))
 
-; todo: make this faster. Need to sample 1000 from each pgm distribution if possible
 (defn prob
   "Returns the probability that a random variable drawn from the
    distribution obeys the predicate."
@@ -93,10 +91,8 @@
         numerator (-> (if pgm? (reduce + (vals d)) (count d))
                       (.doubleValue))
         denom (if pgm?
-                ;(reduce + (vals (into [] (r/filter given? all))))
-                (reduce + (vals (into {} (r/filter given? all))))
+                (r/fold + (r/map val (into [] (r/filter given? all))))
                 (count (into [] (r/filter given? all))))]
-                ;(count (into [] (r/filter given? all))))]
     (if debug (println "\tPGM?: " pgm? ", numerator: " numerator ", denom: " denom) nil)
     (/ numerator denom)))
 
@@ -385,12 +381,11 @@
   [rush-hour :- Boolean
    bad-weather :- Boolean
    n :- s/Int]
-  (let [dist (atom {})]
-    (doseq [a (sample (accident bad-weather) n)
-            s (sample (sirens a) n)
-            t (sample (traffic-jam rush-hour bad-weather a) n)]
-      (swap! dist update-in [(traffic-map rush-hour bad-weather a s t)] (fnil inc 0)))
-    (deref dist)))
+  (frequencies
+    (for [a (sample (accident bad-weather) n)
+          s (sample (sirens a) n)
+          t (sample (traffic-jam rush-hour bad-weather a) n)]
+      (traffic-map rush-hour bad-weather a s t))))
 
 ; todo: Don't think this is the best way to gnerate this distribution.
 (s/defrecord TrafficDistribution
@@ -438,12 +433,11 @@
 (s/defn grass-dist
   [cloudy :- Boolean
    n :- s/Int]
-  (let [dist (atom {})]
-    (doseq [s (sample (sprinkler cloudy) n)
-            r (sample (rain cloudy) n)
-            w (sample (wet-grass s r) n)]
-      (swap! dist update-in [(grass-map cloudy s r w)] (fnil inc 0)))
-    (deref dist)))
+  (frequencies
+    (for [s (sample (sprinkler cloudy) n)
+          r (sample (rain cloudy) n)
+          w (sample (wet-grass s r) n)]
+      (grass-map cloudy s r w))))
 
 (s/defrecord GrassDistribution
   [cloudy :- TrueFalseDistribution]
