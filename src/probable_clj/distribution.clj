@@ -6,6 +6,14 @@
   (:use [clojure.core.match :only (match)]))
 
 ;;;; Probability distribution and the functions that operate on them
+;;;; Two types of distributions are represented here:
+;;;; (1) Continuous => distribution is a vector of values
+;;;; (2) Discrete => distribution is a hash-map of values to their frequencies
+;;;;                 Exceptions to this are trivial distributions, like the
+;;;;                 DiscreteDistribution or the Coin below. This is really for
+;;;;                 distributions where possible values are composites, like in
+;;;;                 graphical models.
+
 ; todo: combine the predicate? in given into sample: (sample u 10 :given pred?)
 (defprotocol Distribution
   "Basic specification for a probability distribution"
@@ -33,13 +41,21 @@
                         (cons x (flat (rest c))))))))]
     (if (sequential? x) (flat x) x)))
 
+(defn sum-samples
+  "Given samples drawn from a discrete distribution it sums the frequencies and
+  returns the output. Given samples from a continuous distribution the output
+  is returned unchanged."
+  [dist]
+  (let [first-sample (first dist)]
+    (if (map? first-sample)
+      (into {} (reduce #(merge-with + %1 %2) dist))
+      dist)))
+
 (s/defn sample :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
   [dist :- Distribution
    n :- s/Int]
-  (->> (repeatedly n #(.sample dist))
-       flatten2
-       (into [])))
+  (sum-samples (repeatedly n #(.sample dist))))
 
 (s/defn given :- clojure.lang.PersistentVector
   "Returns a vector of n values that fulfill the predicate."
@@ -328,39 +344,49 @@
          [false false false]  (true-false 0.1)))
 
 (defn traffic-map
+  "Possible state of the traffic Bayesian network. For each distinct set of
+  values [r w a s t], we have a distinct state of the Bayesian network."
   [r w a s t]
   {:rush-hour r :bad-weather w :accident a :sirens s :traffic-jam t})
 
-(s/defn traffic-dist
+; A convenient way to specify the probability distribution for a Bayesian
+; network like this is to sample the distribution and specify frequencies
+; for each state. This way it will become easy to compute probabilities
+; without memory issues.
+;(s/defn initialize-traffic-dist
+;  "There are 2^5 = 32 possible states for this Bayesian Net. Each will
+;  be initialized with frequency zero."
+;  []
+;  (let [bayes-net (atom {})]
+;    (doseq [r [true false]
+;            w [true false]
+;            a [true false]
+;            s [true false]
+;            t [true false]]
+;      (swap! bayes-net assoc-in [(traffic-map r w a s t)] 0))
+;    (deref bayes-net)))
+
+(s/defn traffic-dist :- clojure.lang.PersistentHashMap
   [rush-hour :- Boolean
    bad-weather :- Boolean
    n :- s/Int]
-  (let [dist (atom [])]
+  (let [dist (atom {})]
     (doseq [a (sample (accident bad-weather) n)
             s (sample (sirens a) n)
             t (sample (traffic-jam rush-hour bad-weather a) n)]
-      (swap! dist conj (traffic-map rush-hour bad-weather a s t)))
+      (swap! dist update-in [(traffic-map rush-hour bad-weather a s t)] (fnil inc 0)))
     (deref dist)))
 
-;(s/defn traffic-dist
-;  [rush-hour :- Boolean
-;   bad-weather :- Boolean
-;   n :- s/Int]
-;  (let [dist (atom [])]
-;    (doseq [a (sample (accident bad-weather) n)
-;            s (sample (sirens a) n)
-;            t (sample (traffic-jam rush-hour bad-weather a) n)]
-;      (swap! dist conj (traffic-map rush-hour bad-weather a s t)))
-;    (deref dist)))
-
-(s/defrecord TrafficDistribution []
+(s/defrecord TrafficDistribution
+  [rush-hour :- TrueFalseDistribution
+   bad-weather :- TrueFalseDistribution]
   Distribution
   (sample [this]
-          (let [r (.sample (rush-hour))
-                w (.sample (bad-weather))]
-            (traffic-dist r w 5))))
+          (let [r (.sample rush-hour)
+                w (.sample bad-weather)]
+            (traffic-dist r w 10))))
 
-(s/defn traffic [] (TrafficDistribution.))
+(s/defn traffic [] (TrafficDistribution. (rush-hour) (bad-weather)))
 
 ;; Another example from http://www.cs.ubc.ca/~murphyk/Bayes/bnintro.html
 (s/defn cloudy :- TrueFalseDistribution
