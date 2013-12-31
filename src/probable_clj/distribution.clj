@@ -62,7 +62,7 @@
   [dist :- Distribution
    predicate?
    n :- s/Int]
-  (->> (sample dist 100000)
+  (->> (sample dist 10000)
        (filter predicate?)
        (take n)
        (into [])))
