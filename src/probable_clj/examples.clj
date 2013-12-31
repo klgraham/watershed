@@ -1,13 +1,15 @@
 (ns probable-clj.examples
   (:import (java.lang Boolean))
   (:use [probable-clj.distribution])
-  (:require [schema.core :as s]))
+  (:require [schema.core :as s]
+            [clojure.core.reducers :as r]))
 
 ;todo: See how to import a record from a different ns that is defined with s/defn
 ;;;;; Contains examples of how to use probable-clj for:
 ;;;;;  * general probability distribution calculations
 ;;;;;  * probabilistic graphical models
 
+(println (given (uniform) (gt? 0.5) 10))
 (def norm (normal))
 (println "Sampling the Standard Normal distribution between +/-1:\n" (-> norm (given (between? -1 1) 5)))
 (println "Prob. of values between +/- 1: " (prob norm (between? -1 1)))
@@ -49,9 +51,9 @@
 (println "Frequency of heads (empirically): " (prob unfair-coin (eq? 'H)))
 
 ;;; Probabilisic graphical model examples.
-(println "\n*******************")
+(println "\n********************")
 (println "*** PGM examples ***")
-(println "*******************\n")
+(println "********************\n")
 
 ;;; Here is a schematic for the model. The notation is as follows:
 ;;; {:x [] :y [:x]} means:
@@ -63,28 +65,55 @@
 ;;;         X -> Y
 
 ;(doall (map println (sample (academics) 5)))
-(println "What is the probability of getting a scholarship if grades are poor?")
-(println (prob (academics) #(= true (:scholarship %)) :given? #(= false (:grades %))))
+;(println "What is the probability of getting a scholarship if grades are poor?")
+;(println (prob (academics) #(= true (:scholarship %)) :given? #(= false (:grades %))))
+;
+;(println "What is the probability of getting a scholarship if not smart?")
+;(println (prob (academics) #(= true (:scholarship %)) :given? #(= false (:smart %))))
+;
+;(println "What is the probability of getting a scholarship if not smart and have bad grades?")
+;(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:grades %)) (= false (:smart %)))))
+;
+;(println "What is the probability of getting a scholarship if affluent?")
+;(println (prob (academics) #(= true (:scholarship %)) :given? #(= true (:affluent %))))
+;
+;(println "What is the probability of getting a scholarship if grades are good but is poor?")
+;(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:affluent %)) (= true (:grades %)))))
+;
+;(println "\n*** Traffic Jam example ***\n")
 
-(println "What is the probability of getting a scholarship if not smart?")
-(println (prob (academics) #(= true (:scholarship %)) :given? #(= false (:smart %))))
+;(doall (map println (sample (traffic) 5)))
+(def t (traffic))
+;(println (.sample t))
+;(println "Prob of traffic jam given bad weather:")
+;(println (prob t (truth :traffic-jam) :given? (truth :bad-weather)))
+;(println "Prob of bad-weather given traffic jam:")
+;(println (prob t (truth :bad-weather) :given (truth :traffic-jam) ))
+;(println (given t (truth :bad-weather) 2))
+;;(println (prob (traffic) (truth :traffic-jam) :given? (and (truth :bad-weather) (truth :sirens)) :samples 10000))
+;(println (prob (traffic) #(= true (:accident %)) :given? (and (truth :bad-weather) (truth :traffic-jam)) :samples 10000))
+;;(println (prob (traffic) #(= true (:accident %)) :given? (truth :traffic-jam) :samples 10000))
+;;(println (traffic-dist 2))
+;(println "test: " (let [given (into [] (r/filter (truth :bad-weather) (traffic-dist 10)))
+;               g (count given)
+;               d (into [] (r/filter (truth :traffic-jam) given))
+;               n (count d)]
+;           (/ (.doubleValue n) g)))
+;(println (prob (accident true) (eq? true)))
+;(println (prob (traffic-jam true true false) (eq? true)))
 
-(println "What is the probability of getting a scholarship if not smart and have bad grades?")
-(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:grades %)) (= false (:smart %)))))
+;
 
-(println "What is the probability of getting a scholarship if affluent?")
-(println (prob (academics) #(= true (:scholarship %)) :given? #(= true (:affluent %))))
-
-(println "What is the probability of getting a scholarship if grades are good but is poor?")
-(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:affluent %)) (= true (:grades %)))))
-
-(println "\n*** Traffic Jam example ***\n")
-(s/defn truth [k :- s/required-key]
-  (fn [x] (= true (k x))))
-
-(println (prob (traffic) (truth :traffic-jam) :given? (truth :bad-weather) :samples 100000))
-;(println (prob (traffic) (truth :traffic-jam) :given? (and (truth :bad-weather) (truth :sirens)) :samples 10000))
-(println (prob (traffic) #(= true (:accident %)) :given? (and (truth :bad-weather) (truth :traffic-jam)) :samples 10000))
-;(println (prob (traffic) #(= true (:accident %)) :given? (truth :traffic-jam) :samples 10000))
-;(println (traffic-dist 2))
-;;(println (let [d (filter #() (traffic-dist 10))]))
+(def g (grass))
+(def s (sample g 10000))
+(doall (map println s))
+(println "Filter grass sample by things with sprinklers on and count them: ")
+(println (let [on (filter (tf? :sprinkler true) s)]
+           (reduce + (vals on))))
+(println "Sample with wet grass")
+(doall (map println (given g (tf? :wet-grass true) 100)))
+(println "Prob of a cloudy day: " (prob g (tf? :cloudy true)))
+(println "Prob of wet grass: " (prob g (tf? :wet-grass true)))
+(println "Prob of wet grass given cloudy day: " (prob g (tf? :wet-grass true) :given (tf? :cloudy true)))
+(println "Prob of rain given wet grass: " (prob g (tf? :rain true) :given (tf? :wet-grass true)))
+(println "Prob of sprinkler given wet grass: " (prob g (tf? :sprinkler true) :given (tf? :wet-grass true)))

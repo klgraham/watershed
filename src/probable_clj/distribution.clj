@@ -1,6 +1,6 @@
 (ns probable-clj.distribution
   (:import (java.util Random)
-           (java.lang Double))
+           (java.lang Double Boolean))
   (:require [schema.core :as s]
             [clojure.core.reducers :as r])
   (:use [clojure.core.match :only (match)]))
@@ -81,14 +81,14 @@
    & {:keys [given? samples] :or {samples 10000}}]
   (let [d (if (nil? given?)
             (sample dist samples)
-            (given dist given? samples))
+            (given dist (every-pred given? predicate?) samples))
         pgm? (vector? (first d))
         n (if pgm? (reduce + (vals d)) (count d))]
     (if pgm?
-      (-> (reduce + (vals (into [] (r/filter predicate? d))))
+      (->> (reduce + (vals (into [] (r/filter predicate? d))))
            (.doubleValue)
            (/ n))
-      (-> (into [] (r/filter predicate? d))
+      (->> (into [] (r/filter predicate? d))
            count
            (.doubleValue)
            (/ n)))))
@@ -119,12 +119,14 @@
 
 (s/defn eq? [y :- s/Number] (fn [x] (= x y)))
 
-(s/defn is-true?
+(s/defn tf?
   "Returns a function that will operate on a hash-map/tuple where the key is itself
   a hash-map and return true if the key-of-interest has value true. Used for
   PGM-type distributions."
-  [key-of-interest :- s/Keyword]
-  (fn [map] (get (get map 0) key-of-interest false)))
+  [key-of-interest :- s/Keyword
+   tf :- Boolean]
+  (fn [map] (= tf (get (get map 0) key-of-interest false))))
+
 
 ;;;; Implementations of specific distributions
 
