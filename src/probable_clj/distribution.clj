@@ -82,11 +82,16 @@
   (let [d (if (nil? given?)
             (sample dist samples)
             (given dist given? samples))
-        n (count d)]
-    (-> (into [] (r/filter predicate? d))
-        count
-        (.doubleValue)
-        (/ n))))
+        pgm? (vector? (first d))
+        n (if pgm? (reduce + (vals d)) (count d))]
+    (if pgm?
+      (-> (reduce + (vals (into [] (r/filter predicate? d))))
+           (.doubleValue)
+           (/ n))
+      (-> (into [] (r/filter predicate? d))
+           count
+           (.doubleValue)
+           (/ n)))))
 
 ;; Useful predicates
 (s/defn gt? "Is x greater than y?"
