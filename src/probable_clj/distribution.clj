@@ -62,16 +62,10 @@
   [dist :- Distribution
    predicate?
    n :- s/Int]
-  (let [candidates (repeatedly #(.sample dist))
-        filter-nils (fn [coll] (filter #(not (nil? %)) coll))]
-    (loop [c candidates
-           samples []]
-      (if (= n (count (filter-nils samples)))
-        (into [] (filter-nils samples))
-        (recur (rest c)
-               (if (predicate? (first c))
-                 (conj samples (first c))
-                 (conj samples nil)))))))
+  (->> (sample dist 10000)
+       (filter predicate?)
+       (take n)
+       (into [])))
 
 (s/defn flip :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
@@ -119,6 +113,13 @@
                (<= x high))))
 
 (s/defn eq? [y :- s/Number] (fn [x] (= x y)))
+
+(s/defn is-true?
+  "Returns a function that will operate on a hash-map/tuple where the key is itself
+  a hash-map and return true if the key-of-interest has value true. Used for
+  PGM-type distributions."
+  [key-of-interest :- s/Keyword]
+  (fn [map] (get (get map 0) key-of-interest false)))
 
 ;;;; Implementations of specific distributions
 
@@ -413,20 +414,27 @@
          [false true] (true-false 0.9)
          [false false] (true-false 0.0)))
 
+(defn grass-map
+  "Possible state of the Grass Bayesian network. For each distinct set of
+  values [c s r w], we have a distinct state of the Bayesian network."
+  [c s r w]
+  {:cloudy c :sprinkler s :rain r :wet-grass w})
+
 (s/defn grass-dist
   [cloudy :- Boolean
    n :- s/Int]
-  (let [dist (atom [])]
+  (let [dist (atom {})]
     (doseq [s (sample (sprinkler cloudy) n)
             r (sample (rain cloudy) n)
             w (sample (wet-grass s r) n)]
-      (swap! dist conj {:cloudy cloudy :sprinkler s :rain r :wet-grass w}))
+      (swap! dist update-in [(grass-map cloudy s r w)] (fnil inc 0)))
     (deref dist)))
 
-(s/defrecord GrassDistribution []
+(s/defrecord GrassDistribution
+  [cloudy :- TrueFalseDistribution]
   Distribution
   (sample [this]
-          (let [c (.sample (cloudy))]
+          (let [c (.sample cloudy)]
             (grass-dist c 2))))
 
-(s/defn grass [] (GrassDistribution.))
+(s/defn grass [] (GrassDistribution. (cloudy)))
