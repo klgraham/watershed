@@ -62,7 +62,7 @@
   [dist :- Distribution
    predicate?
    n :- s/Int]
-  (->> (sample dist 10000)
+  (->> (sample dist 100000)
        (filter predicate?)
        (take n)
        (into [])))
@@ -78,20 +78,16 @@
    distribution obeys the predicate. Defaults to 10,000 samples."
   [dist
    predicate?
-   & {:keys [given? samples] :or {samples 10000}}]
-  (let [d (if (nil? given?)
-            (sample dist samples)
-            (given dist (every-pred given? predicate?) samples))
+   & {:keys [given? samples debug] :or {samples 10000 given? #(-> (nil? %) not) debug false}}]
+  (let [d (given dist (every-pred given? predicate?) samples)
         pgm? (vector? (first d))
-        n (if pgm? (reduce + (vals d)) (count d))]
-    (if pgm?
-      (->> (reduce + (vals (into [] (r/filter predicate? d))))
-           (.doubleValue)
-           (/ n))
-      (->> (into [] (r/filter predicate? d))
-           count
-           (.doubleValue)
-           (/ n)))))
+        all (sample dist samples)
+        num (.doubleValue (if pgm? (reduce + (vals d)) (count d)))
+        denom (if pgm?
+                (reduce + (vals (into [] (r/filter given? all))))
+                (count (into [] (r/filter given? all))))]
+    (if debug (println "\tPGM?: " pgm? ", num: " num ", denom: " denom) nil)
+    (/ num denom)))
 
 ;; Useful predicates
 (s/defn gt? "Is x greater than y?"
@@ -385,6 +381,7 @@
       (swap! dist update-in [(traffic-map rush-hour bad-weather a s t)] (fnil inc 0)))
     (deref dist)))
 
+; todo: Don't think this is the best way to gnerate this distribution.
 (s/defrecord TrafficDistribution
   [rush-hour :- TrueFalseDistribution
    bad-weather :- TrueFalseDistribution]
@@ -392,7 +389,7 @@
   (sample [this]
           (let [r (.sample rush-hour)
                 w (.sample bad-weather)]
-            (traffic-dist r w 10))))
+            (traffic-dist r w 2))))
 
 (s/defn traffic [] (TrafficDistribution. (rush-hour) (bad-weather)))
 
