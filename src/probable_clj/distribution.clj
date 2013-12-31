@@ -57,15 +57,20 @@
    n :- s/Int]
   (sum-samples (repeatedly n #(.sample dist))))
 
-(s/defn given :- clojure.lang.PersistentVector
+(defn given
   "Returns a vector of n values that fulfill the predicate."
-  [dist :- Distribution
+  [dist
    predicate?
-   n :- s/Int]
-  (->> (sample dist 10000)
-       (filter predicate?)
-       (take n)
-       (into [])))
+   ;n
+   & {:keys [pgm?] :or {pgm? false}}]
+  ; Because of the way the distribution for PGMs are being generated, the
+  ; (.sample) fn draws more than one possible state from the PGM distribution
+  (let [num-samples (if pgm? 2000 10000)
+        fresh-coll (if pgm? {} [])]
+    (->> (sample dist num-samples)
+         (filter predicate?)
+         ;(take n)
+         (into fresh-coll))))
 
 (s/defn flip :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
@@ -73,21 +78,27 @@
    n :- s/Int]
   (into [] (repeatedly n #(.flip coin))))
 
+; todo: make this faster. Need to sample 1000 from each pgm distribution if possible
 (defn prob
   "Returns the probability that a random variable drawn from the
-   distribution obeys the predicate. Defaults to 10,000 samples."
+   distribution obeys the predicate."
   [dist
    predicate?
-   & {:keys [given? samples debug] :or {samples 10000 given? #(-> (nil? %) not) debug false}}]
-  (let [d (given dist (every-pred given? predicate?) samples)
-        pgm? (vector? (first d))
-        all (sample dist samples)
-        num (.doubleValue (if pgm? (reduce + (vals d)) (count d)))
+   & {:keys [given? debug] :or {given? #(-> (nil? %) not) debug false}}]
+  (let [test-sample (.sample dist)
+        pgm? (not (or (number? test-sample) (symbol? test-sample)))
+        num-samples (if pgm? 2000 10000)
+        all (sample dist num-samples)
+        d (given dist (every-pred given? predicate?) :pgm? pgm?)
+        numerator (-> (if pgm? (reduce + (vals d)) (count d))
+                      (.doubleValue))
         denom (if pgm?
-                (reduce + (vals (into [] (r/filter given? all))))
+                ;(reduce + (vals (into [] (r/filter given? all))))
+                (reduce + (vals (into {} (r/filter given? all))))
                 (count (into [] (r/filter given? all))))]
-    (if debug (println "\tPGM?: " pgm? ", num: " num ", denom: " denom) nil)
-    (/ num denom)))
+                ;(count (into [] (r/filter given? all))))]
+    (if debug (println "\tPGM?: " pgm? ", numerator: " numerator ", denom: " denom) nil)
+    (/ numerator denom)))
 
 ;; Useful predicates
 (s/defn gt? "Is x greater than y?"
@@ -126,7 +137,7 @@
 
 ;;;; Implementations of specific distributions
 
-;; Distribution with random variables uniformly distributed on [0,1].
+;; Distribution with random variables uniformly distributed on [0,1).
 (s/defrecord UniformDistribution
   [r :- Random]
   Distribution
@@ -136,7 +147,7 @@
   "Factory function to create a UniformDistribution"
   [] (UniformDistribution. (new Random)))
 
-;; Distribution with random variables normally distributed on (-\inf, \inf).
+;; Distribution with random variables normally distributed.
 ;; Has mean 0 and variance 1.
 (s/defrecord StandardNormalDistribution
              [r :- Random]
@@ -389,7 +400,7 @@
   (sample [this]
           (let [r (.sample rush-hour)
                 w (.sample bad-weather)]
-            (traffic-dist r w 2))))
+            (traffic-dist r w 10))))
 
 (s/defn traffic [] (TrafficDistribution. (rush-hour) (bad-weather)))
 
@@ -439,6 +450,6 @@
   Distribution
   (sample [this]
           (let [c (.sample cloudy)]
-            (grass-dist c 2))))
+            (grass-dist c 10))))
 
 (s/defn grass [] (GrassDistribution. (cloudy)))

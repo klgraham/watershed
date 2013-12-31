@@ -9,18 +9,15 @@
 ;;;;;  * general probability distribution calculations
 ;;;;;  * probabilistic graphical models
 
-(println (given (uniform) (gt? 0.5) 10))
 (def norm (normal))
-(println "Sampling the Standard Normal distribution between +/-1:\n" (-> norm (given (between? -1 1) 5)))
 (println "Prob. of values between +/- 1: " (prob norm (between? -1 1)))
 (println "Prob. of values between +/- 2: " (prob norm (between? -2 2)))
 (println "Prob. of values between +/- 3: " (prob norm (between? -3 3)))
 (println "Prob. of values between +/- 4: " (prob norm (between? -4 4)))
 (println "Prob. of values between +/- 5: " (prob norm (between? -5 5)))
-(println "Only generate samples with values > 1.5" (-> norm (given (gt? 1.5) 5)))
 
 (println "\nIf win prob. is 20%, what is the prob of a win in 10000 Bernoulli trials?")
-(println (prob (bernoulli 0.2) (eq? 1)) :samples 10000)
+(println (prob (bernoulli 0.2) (eq? 1)))
 
 ;; Rolling the dice: Composing distributions to obtain others
 ;; 6-sided die
@@ -80,19 +77,34 @@
 ;(println "What is the probability of getting a scholarship if grades are good but is poor?")
 ;(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:affluent %)) (= true (:grades %)))))
 ;
-;(println "\n*** Traffic Jam example ***\n")
+(println "Traffic:\n")
 
 ;(doall (map println (sample (traffic) 5)))
 (def t (traffic))
-;(println (.sample t))
+;(println "1000 samples")
+;(time (def s (.sample t)))
+;(doall (map println s))
+;(println "\n10000 samples")
+;(time (def s (sample t 10)))
+;(doall (map println s))
+;(println "\n100000 samples")
+;(time (def s (sample t 100)))
+;(doall (map println s))
+;(println "\n1,000,000 samples")
+;(time (def s (sample t 1000)))
+;(doall (map println s))
 (println "Prob of traffic jam given bad weather:")
-(println (prob t (tf? :traffic-jam true) :given? (tf? :bad-weather true) :debug true))
-;(println "Prob of bad-weather given traffic jam:")
-;(println (prob t (truth :bad-weather) :given (truth :traffic-jam) ))
-;(println (given t (truth :bad-weather) 2))
-;;(println (prob (traffic) (truth :traffic-jam) :given? (and (truth :bad-weather) (truth :sirens)) :samples 10000))
-;(println (prob (traffic) #(= true (:accident %)) :given? (and (truth :bad-weather) (truth :traffic-jam)) :samples 10000))
-;;(println (prob (traffic) #(= true (:accident %)) :given? (truth :traffic-jam) :samples 10000))
+(time (println (prob t (tf? :traffic-jam true) :given? (tf? :bad-weather true) :debug true)))
+
+(println "Prob of traffic jam given bad weather and sirens:")
+(time (println (prob t (tf? :traffic-jam true)
+                     :given? (every-pred (tf? :bad-weather true) (tf? :sirens true)) :debug true)))
+
+(println "Prob of bad-weather given traffic jam:")
+(time (println (prob t (tf? :bad-weather true) :given (tf? :traffic-jam true) :debug true)))
+;;(println (prob (traffic) (truth :traffic-jam) :given? (and (truth :bad-weather) (truth :sirens))))
+;(println (prob (traffic) #(= true (:accident %)) :given? (and (truth :bad-weather) (truth :traffic-jam))))
+;;(println (prob (traffic) #(= true (:accident %)) :given? (truth :traffic-jam)))
 ;;(println (traffic-dist 2))
 ;(println "test: " (let [given (into [] (r/filter (truth :bad-weather) (traffic-dist 10)))
 ;               g (count given)
@@ -103,17 +115,12 @@
 ;(println (prob (traffic-jam true true false) (eq? true)))
 
 ;
-
-(def g (grass))
+;(println "\n*** Grass example ***\n")
+;(def g (grass))
 ;(def s (sample g 10000))
 ;(doall (map println s))
-;(println "Filter grass sample by things with sprinklers on and count them: ")
-;(println (let [on (filter (tf? :sprinkler true) s)]
-;           (reduce + (vals on))))
-;(println "Sample with wet grass")
-;(doall (map println (given g (tf? :wet-grass true) 100)))
-(println "Prob of a cloudy day: " (prob g (tf? :cloudy true)))
-(println "Prob of wet grass: " (prob g (tf? :wet-grass true)))
-(println "Prob of wet grass given cloudy day: " (prob g (tf? :wet-grass true) :given? (tf? :cloudy true)))
-(println "Prob of rain given wet grass: " (prob g (tf? :rain true) :given (tf? :wet-grass true) :debug true))
-(println "Prob of sprinkler given wet grass: " (prob g (tf? :sprinkler true) :given? (tf? :wet-grass true)))
+;(println "Prob of a cloudy day: " (prob g (tf? :cloudy true)))
+;(println "Prob of wet grass: " (prob g (tf? :wet-grass true)))
+;(println "Prob of wet grass given cloudy day: " (prob g (tf? :wet-grass true) :given? (tf? :cloudy true)))
+;(println "Prob of rain given wet grass: " (prob g (tf? :rain true) :given (tf? :wet-grass true) :debug true))
+;(println "Prob of sprinkler given wet grass: " (prob g (tf? :sprinkler true) :given? (tf? :wet-grass true)))
