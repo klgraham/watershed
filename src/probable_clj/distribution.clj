@@ -65,7 +65,7 @@
    & {:keys [pgm?] :or {pgm? false}}]
   ; Because of the way the distribution for PGMs are being generated, the
   ; (.sample) fn draws more than one possible state from the PGM distribution
-  (let [num-samples (if pgm? 2000 10000)
+  (let [num-samples (if pgm? 5000 10000)
         fresh-coll (if pgm? {} [])]
     (->> (sample dist num-samples)
          (r/filter predicate?)
@@ -85,7 +85,7 @@
    & {:keys [given? debug] :or {given? #(-> (nil? %) not) debug false}}]
   (let [test-sample (.sample dist)
         pgm? (not (or (number? test-sample) (symbol? test-sample)))
-        num-samples (if pgm? 2000 10000)
+        num-samples (if pgm? 5000 10000)
         all (sample dist num-samples)
         d (given dist (every-pred given? predicate?) :pgm? pgm?)
         numerator (-> (if pgm? (reduce + (vals d)) (count d))
@@ -387,7 +387,7 @@
           t (sample (traffic-jam rush-hour bad-weather a) n)]
       (traffic-map rush-hour bad-weather a s t))))
 
-; todo: Don't think this is the best way to gnerate this distribution.
+; todo: Don't think this is the best way to gnerate this distribution, regarding how to iterate over the states.
 (s/defrecord TrafficDistribution
   [rush-hour :- TrueFalseDistribution
    bad-weather :- TrueFalseDistribution]
@@ -395,7 +395,7 @@
   (sample [this]
           (let [r (.sample rush-hour)
                 w (.sample bad-weather)]
-            (traffic-dist r w 10))))
+            (traffic-dist r w 5))))
 
 (s/defn traffic [] (TrafficDistribution. (rush-hour) (bad-weather)))
 
@@ -444,6 +444,6 @@
   Distribution
   (sample [this]
           (let [c (.sample cloudy)]
-            (grass-dist c 10))))
+            (grass-dist c 5))))
 
 (s/defn grass [] (GrassDistribution. (cloudy)))
