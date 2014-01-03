@@ -24,6 +24,10 @@
   "Basic specification for a probability distribution"
   (sample [this] "Draws a single value from the distribution."))
 
+(defprotocol DistributionPGM
+  "Basic specification for a joint probability distribution of a PGM"
+  (sample [this] "Draws a one value from the PGM joint distribution."))
+
 (defprotocol Coin
   "Basic functions for simulating coin tosses."
   (flip [this]
@@ -46,20 +50,20 @@
                         (cons x (flat (rest c))))))))]
     (if (sequential? x) (flat x) x)))
 
-(defn sum-samples
-  "Given samples drawn from a discrete distribution it sums the frequencies and
-  returns the output. Given samples from a continuous distribution the output
-  is returned unchanged."
-  [dist]
-  (let [first-sample (first dist)]
-    (if (map? first-sample)
-      (into {} (reduce #(merge-with + %1 %2) dist))
-      dist)))
+;(defn sum-samples
+;  "Given samples drawn from a discrete distribution it sums the frequencies and
+;  returns the output. Given samples from a continuous distribution the output
+;  is returned unchanged."
+;  [dist]
+;  (let [first-sample (first dist)]
+;    (if (map? first-sample)
+;      (into {} (reduce #(merge-with + %1 %2) dist))
+;      dist)))
 
 (s/defn metropolis-sampling :- clojure.lang.PersistentHashMap
   "Samples the given distribution using Monte Carlo with Metropolis-Hastings
   sampling"
-  [dist :- Distribution
+  [dist :- DistributionPGM
    num-samples :- s/Int]
   (let [current-state (atom (.sample dist))
         samples (atom {@current-state 1})
@@ -83,11 +87,11 @@
 
 (s/defn sample :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
-  [dist :- Distribution
+  [dist
    n :- s/Int]
-  (match (class dist)
-         GrassDistribution  (metropolis-sampling dist n)
-         :else (sum-samples (repeatedly n #(.sample dist)))))
+  (if (extends? DistributionPGM (type dist))
+    (metropolis-sampling dist n)
+    (repeatedly n #(.sample dist))))
 
 (defn given
   "Returns a vector of n values that fulfill the predicate."
@@ -97,7 +101,7 @@
    & {:keys [pgm?] :or {pgm? false}}]
   ; Because of the way the distribution for PGMs are being generated, the
   ; (.sample) fn draws more than one possible state from the PGM distribution
-  (let [num-samples (if pgm? 5000 10000)
+  (let [num-samples 10000
         fresh-coll (if pgm? {} [])]
     (->> (sample dist num-samples)
          (r/filter predicate?)
@@ -117,7 +121,7 @@
    & {:keys [given? debug] :or {given? #(-> (nil? %) not) debug false}}]
   (let [test-sample (.sample dist)
         pgm? (not (or (number? test-sample) (symbol? test-sample)))
-        num-samples (if pgm? 5000 10000)
+        num-samples 10000
         all (sample dist num-samples)
         d (given dist (every-pred given? predicate?) :pgm? pgm?)
         numerator (-> (if pgm? (reduce + (vals d)) (count d))
@@ -166,8 +170,8 @@
 ;;;; Implementations of specific distributions
 
 ;; Distribution with random variables uniformly distributed on [0,1).
-(s/defrecord UniformDistribution
-  [r :- Random]
+(defrecord UniformDistribution
+  [r]
   Distribution
   (sample [this] (.nextDouble r)))
 
@@ -473,7 +477,7 @@
 
 (s/defrecord GrassDistribution
   []
-  Distribution
+  DistributionPGM
   (sample [this]
           (let [c (.sample (cloudy))
                 s (.sample (sprinkler c))
