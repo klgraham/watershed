@@ -1,9 +1,14 @@
 (ns probable-clj.distribution
   (:import (java.util Random)
-           (java.lang Double Boolean))
+           (java.lang Double Boolean)
+           (sun.security.x509 DistributionPoint))
   (:require [schema.core :as s]
             [clojure.core.reducers :as r])
-  (:use [clojure.core.match :only (match)]))
+  (:use [clojure.core.match :only (match)]
+        [taoensso.timbre :only (info)]))
+
+; for logging
+;(timbre/refer-timbre)
 
 ;;;; Probability distribution and the functions that operate on them
 ;;;; Two types of distributions are represented here:
@@ -51,11 +56,38 @@
       (into {} (reduce #(merge-with + %1 %2) dist))
       dist)))
 
+(s/defn metropolis-sampling :- clojure.lang.PersistentHashMap
+  "Samples the given distribution using Monte Carlo with Metropolis-Hastings
+  sampling"
+  [dist :- Distribution
+   num-samples :- s/Int]
+  (let [current-state (atom (.sample dist))
+        samples (atom {@current-state 1})
+        ;current-prob (atom 1)
+        acceptance-ratio (atom 0)]
+    (doseq [n (range 1 num-samples)]
+      (let [proposed-state (.sample dist)
+            proposal-prob (get @samples proposed-state 1)
+            current-prob (double (get @samples @current-state))
+            r (rand)
+            ratio (/ current-prob proposal-prob)
+            accept? (< r ratio)
+            state-to-update (if accept? proposed-state @current-state)]
+        (swap! samples update-in [state-to-update] (fnil inc 0))
+        (reset! current-state state-to-update)
+        (if accept?
+          (swap! acceptance-ratio inc))))
+    (info "Acceptance ratio: " (/ (double @acceptance-ratio) num-samples))
+    (info "Number of samples: " num-samples)
+    @samples))
+
 (s/defn sample :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
   [dist :- Distribution
    n :- s/Int]
-  (sum-samples (repeatedly n #(.sample dist))))
+  (match (class dist)
+         GrassDistribution  (metropolis-sampling dist n)
+         :else (sum-samples (repeatedly n #(.sample dist)))))
 
 (defn given
   "Returns a vector of n values that fulfill the predicate."
@@ -430,20 +462,24 @@
   [c s r w]
   {:cloudy c :sprinkler s :rain r :wet-grass w})
 
-(s/defn grass-dist
-  [cloudy :- Boolean
-   n :- s/Int]
-  (frequencies
-    (for [s (sample (sprinkler cloudy) n)
-          r (sample (rain cloudy) n)
-          w (sample (wet-grass s r) n)]
-      (grass-map cloudy s r w))))
+;(s/defn grass-dist
+;  [cloudy :- Boolean
+;   n :- s/Int]
+;  (frequencies
+;    (for [s (sample (sprinkler cloudy) n)
+;          r (sample (rain cloudy) n)
+;          w (sample (wet-grass s r) n)]
+;      (grass-map cloudy s r w))))
 
 (s/defrecord GrassDistribution
-  [cloudy :- TrueFalseDistribution]
+  []
   Distribution
   (sample [this]
-          (let [c (.sample cloudy)]
-            (grass-dist c 5))))
+          (let [c (.sample (cloudy))
+                s (.sample (sprinkler c))
+                r (.sample (rain c))
+                w (.sample (wet-grass s r))]
+            (grass-map c s r w))))
 
-(s/defn grass [] (GrassDistribution. (cloudy)))
+(s/defn grass [] (GrassDistribution.))
+
