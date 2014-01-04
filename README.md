@@ -45,7 +45,7 @@ straightforward. There are two PGM examples:
 
 	1. the common "Rain" example
 	2. the Student's example used in Daphne Kohler's PGM textbook
-	
+
 There are also examples of how to use this for basic probability stuff,
 though for things like that it's perhaps better to use [Incanter](http://incanter.org).
 

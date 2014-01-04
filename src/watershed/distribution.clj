@@ -1,7 +1,6 @@
 (ns watershed.distribution
   (:import (java.util Random)
-           (java.lang Double Boolean)
-           (sun.security.x509 DistributionPoint))
+           (java.lang Double Boolean))
   (:require [schema.core :as s]
             [clojure.core.reducers :as r])
   (:use [clojure.core.match :only (match)]
@@ -299,105 +298,105 @@
 ;          :high-sat [:smart :affluent :grades]
 ;          :scholarship [:grades :high-sat]})
 
-(def p-smart 0.4)
-(def p-affluent 0.2)
-(def p-grades-if-smart 0.7)
-(def p-grades-if-not-smart 0.1)
-
-(s/defn smart :- TrueFalseDistribution
-  [] (true-false p-smart))
-
-(s/defn affluent :- TrueFalseDistribution
-  [] (true-false p-affluent))
-
-(s/defn grades :- TrueFalseDistribution
-  [is-smart :- Boolean]
-  (if is-smart
-    (true-false p-grades-if-smart)
-    (true-false p-grades-if-not-smart)))
-
-(s/defn high-sat :- TrueFalseDistribution
-  [is-smart :- Boolean
-   is-affluent :- Boolean
-   good-grades :- Boolean]
-  (match [is-smart is-affluent good-grades]
-         [true true true] (true-false 0.8)
-         [true false true] (true-false 0.7)
-         [false true true] (true-false 0.2)
-         [true _ false] (true-false 0.2)
-         [false true false] (true-false 0.01)
-         [false false true] (true-false 0.1)
-         [false false false] (true-false 0.01)))
-
-(s/defn scholarship :- TrueFalseDistribution
-  [good-grades :- Boolean
-   high-sat :- Boolean]
-  (match [good-grades high-sat]
-         [true true] (true-false 0.9)
-         [true false] (true-false 0.4)
-         [false true] (true-false 0.4)
-         [false false] (true-false 0.0)))
-
-(s/defrecord AcademicsDistribution []
-  Distribution
-  (sample [this]
-          (let [s (.sample (smart))
-                a (.sample (affluent))
-                g (.sample (grades s))
-                sat (.sample (high-sat s a g))
-                sh (.sample (scholarship g sat))]
-            {:smart s :affluent a :grades g :high-sat sat :scholarship sh})))
-
-(s/defn academics [] (AcademicsDistribution.))
+;(def p-smart 0.4)
+;(def p-affluent 0.2)
+;(def p-grades-if-smart 0.7)
+;(def p-grades-if-not-smart 0.1)
+;
+;(s/defn smart :- TrueFalseDistribution
+;  [] (true-false p-smart))
+;
+;(s/defn affluent :- TrueFalseDistribution
+;  [] (true-false p-affluent))
+;
+;(s/defn grades :- TrueFalseDistribution
+;  [is-smart :- Boolean]
+;  (if is-smart
+;    (true-false p-grades-if-smart)
+;    (true-false p-grades-if-not-smart)))
+;
+;(s/defn high-sat :- TrueFalseDistribution
+;  [is-smart :- Boolean
+;   is-affluent :- Boolean
+;   good-grades :- Boolean]
+;  (match [is-smart is-affluent good-grades]
+;         [true true true] (true-false 0.8)
+;         [true false true] (true-false 0.7)
+;         [false true true] (true-false 0.2)
+;         [true _ false] (true-false 0.2)
+;         [false true false] (true-false 0.01)
+;         [false false true] (true-false 0.1)
+;         [false false false] (true-false 0.01)))
+;
+;(s/defn scholarship :- TrueFalseDistribution
+;  [good-grades :- Boolean
+;   high-sat :- Boolean]
+;  (match [good-grades high-sat]
+;         [true true] (true-false 0.9)
+;         [true false] (true-false 0.4)
+;         [false true] (true-false 0.4)
+;         [false false] (true-false 0.0)))
+;
+;(s/defrecord AcademicsDistribution []
+;  Distribution
+;  (sample [this]
+;          (let [s (.sample (smart))
+;                a (.sample (affluent))
+;                g (.sample (grades s))
+;                sat (.sample (high-sat s a g))
+;                sh (.sample (scholarship g sat))]
+;            {:smart s :affluent a :grades g :high-sat sat :scholarship sh})))
+;
+;(s/defn academics [] (AcademicsDistribution.))
 
 ;;; Next, we'll use the same example as in
 ;;; http://jliszka.github.io/2013/12/18/bayesian-networks-and-causality.html
 
 ;; constants for priors
-(def p-rush 0.2)
-(def p-weather 0.05)
-(def p-accident-bad-weather 0.3)
-(def p-accident-good-weather 0.1)
-(def p-sirens-accident 0.9)
-(def p-sirens-no-accident 0.2)
-(def p-rwa 0.95)
-
-;; priors
-(s/defn rush-hour :- TrueFalseDistribution
-  [] (true-false p-rush))
-
-(s/defn bad-weather :- TrueFalseDistribution
-  [] (true-false p-weather))
-
-;; conditionals
-(s/defn accident :- TrueFalseDistribution
-  [weather-is-bad :- Boolean]
-  (if weather-is-bad
-    (true-false p-accident-bad-weather)
-    (true-false p-accident-good-weather)))
-
-(s/defn sirens :- TrueFalseDistribution
-  [accident :- Boolean]
-  (if accident
-    (true-false p-sirens-accident)
-    (true-false p-sirens-no-accident)))
-
-(s/defn traffic-jam :- TrueFalseDistribution
-  [rush-hour bad-weather accident]
-  (match [rush-hour bad-weather accident]
-         [true true _] (true-false p-rwa)
-         [true _ true] (true-false p-rwa)
-         [_ true true] (true-false p-rwa)
-         [true false false] (true-false 0.5)
-         [false true false] (true-false 0.3)
-         [false false true] (true-false 0.6)
-         [false false false]  (true-false 0.1)))
-
-(defn traffic-map
-  "Possible state of the traffic Bayesian network. For each distinct set of
-  values [r w a s t], we have a distinct state of the Bayesian network."
-  [r w a s t]
-  {:rush-hour r :bad-weather w :accident a :sirens s :traffic-jam t})
+;(def p-rush 0.2)
+;(def p-weather 0.05)
+;(def p-accident-bad-weather 0.3)
+;(def p-accident-good-weather 0.1)
+;(def p-sirens-accident 0.9)
+;(def p-sirens-no-accident 0.2)
+;(def p-rwa 0.95)
+;
+;;; priors
+;(s/defn rush-hour :- TrueFalseDistribution
+;  [] (true-false p-rush))
+;
+;(s/defn bad-weather :- TrueFalseDistribution
+;  [] (true-false p-weather))
+;
+;;; conditionals
+;(s/defn accident :- TrueFalseDistribution
+;  [weather-is-bad :- Boolean]
+;  (if weather-is-bad
+;    (true-false p-accident-bad-weather)
+;    (true-false p-accident-good-weather)))
+;
+;(s/defn sirens :- TrueFalseDistribution
+;  [accident :- Boolean]
+;  (if accident
+;    (true-false p-sirens-accident)
+;    (true-false p-sirens-no-accident)))
+;
+;(s/defn traffic-jam :- TrueFalseDistribution
+;  [rush-hour bad-weather accident]
+;  (match [rush-hour bad-weather accident]
+;         [true true _] (true-false p-rwa)
+;         [true _ true] (true-false p-rwa)
+;         [_ true true] (true-false p-rwa)
+;         [true false false] (true-false 0.5)
+;         [false true false] (true-false 0.3)
+;         [false false true] (true-false 0.6)
+;         [false false false]  (true-false 0.1)))
+;
+;(defn traffic-map
+;  "Possible state of the traffic Bayesian network. For each distinct set of
+;  values [r w a s t], we have a distinct state of the Bayesian network."
+;  [r w a s t]
+;  {:rush-hour r :bad-weather w :accident a :sirens s :traffic-jam t})
 
 ; A convenient way to specify the probability distribution for a Bayesian
 ; network like this is to sample the distribution and specify frequencies
@@ -416,27 +415,27 @@
 ;      (swap! bayes-net assoc-in [(traffic-map r w a s t)] 0))
 ;    (deref bayes-net)))
 
-(s/defn traffic-dist :- clojure.lang.PersistentHashMap
-  [rush-hour :- Boolean
-   bad-weather :- Boolean
-   n :- s/Int]
-  (frequencies
-    (for [a (sample (accident bad-weather) n)
-          s (sample (sirens a) n)
-          t (sample (traffic-jam rush-hour bad-weather a) n)]
-      (traffic-map rush-hour bad-weather a s t))))
-
-; todo: Don't think this is the best way to gnerate this distribution, regarding how to iterate over the states.
-(s/defrecord TrafficDistribution
-  [rush-hour :- TrueFalseDistribution
-   bad-weather :- TrueFalseDistribution]
-  Distribution
-  (sample [this]
-          (let [r (.sample rush-hour)
-                w (.sample bad-weather)]
-            (traffic-dist r w 5))))
-
-(s/defn traffic [] (TrafficDistribution. (rush-hour) (bad-weather)))
+;(s/defn traffic-dist :- clojure.lang.PersistentHashMap
+;  [rush-hour :- Boolean
+;   bad-weather :- Boolean
+;   n :- s/Int]
+;  (frequencies
+;    (for [a (sample (accident bad-weather) n)
+;          s (sample (sirens a) n)
+;          t (sample (traffic-jam rush-hour bad-weather a) n)]
+;      (traffic-map rush-hour bad-weather a s t))))
+;
+;; todo: Don't think this is the best way to gnerate this distribution, regarding how to iterate over the states.
+;(s/defrecord TrafficDistribution
+;  [rush-hour :- TrueFalseDistribution
+;   bad-weather :- TrueFalseDistribution]
+;  Distribution
+;  (sample [this]
+;          (let [r (.sample rush-hour)
+;                w (.sample bad-weather)]
+;            (traffic-dist r w 5))))
+;
+;(s/defn traffic [] (TrafficDistribution. (rush-hour) (bad-weather)))
 
 ;; Another example from http://www.cs.ubc.ca/~murphyk/Bayes/bnintro.html
 (s/defn cloudy :- TrueFalseDistribution
