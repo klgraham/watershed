@@ -1,4 +1,4 @@
-(ns probable-clj.distributions
+(ns watershed.distributions
   (:import (java.util Random))
   (:require [schema.core :as s])
   (:use [clojure.set :only (difference)]))

@@ -1,5 +1,5 @@
-(ns probable-clj.statistics
-  (:require [probable-clj.distributions :as d]))
+(ns watershed.statistics
+  (:require [watershed.distributions :as d]))
 
 ;;;;; Basic statistics functions
 

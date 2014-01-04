@@ -1,4 +1,4 @@
-(ns probable-clj.distribution
+(ns watershed.distribution
   (:import (java.util Random)
            (java.lang Double Boolean)
            (sun.security.x509 DistributionPoint))
@@ -9,6 +9,8 @@
 
 ; for logging
 ;(timbre/refer-timbre)
+
+(def num-iterations 100000)
 
 ;;;; Probability distribution and the functions that operate on them
 ;;;; Two types of distributions are represented here:
@@ -60,6 +62,7 @@
 ;      (into {} (reduce #(merge-with + %1 %2) dist))
 ;      dist)))
 
+; todo: This still needs to be tweaked.
 (s/defn metropolis-sampling :- clojure.lang.PersistentHashMap
   "Samples the given distribution using Monte Carlo with Metropolis-Hastings
   sampling"
@@ -101,7 +104,7 @@
    & {:keys [pgm?] :or {pgm? false}}]
   ; Because of the way the distribution for PGMs are being generated, the
   ; (.sample) fn draws more than one possible state from the PGM distribution
-  (let [num-samples 10000
+  (let [num-samples num-iterations
         fresh-coll (if pgm? {} [])]
     (->> (sample dist num-samples)
          (r/filter predicate?)
@@ -121,7 +124,7 @@
    & {:keys [given? debug] :or {given? #(-> (nil? %) not) debug false}}]
   (let [test-sample (.sample dist)
         pgm? (not (or (number? test-sample) (symbol? test-sample)))
-        num-samples 10000
+        num-samples num-iterations
         all (sample dist num-samples)
         d (given dist (every-pred given? predicate?) :pgm? pgm?)
         numerator (-> (if pgm? (reduce + (vals d)) (count d))

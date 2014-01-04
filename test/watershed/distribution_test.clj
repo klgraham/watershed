@@ -1,6 +1,6 @@
-(ns probable-clj.distribution_test
+(ns watershed.distribution_test
   (:use [midje.sweet]
-        [probable-clj.distribution]))
+        [watershed.distribution]))
 
 (facts "Probability of rolling a 6-sided die and getting a 1-6 is one."
        (def die (discrete-uniform 1 6))
