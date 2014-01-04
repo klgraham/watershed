@@ -9,7 +9,7 @@
 ; for logging
 ;(timbre/refer-timbre)
 
-(def num-iterations 100000)
+(def num-iterations 10000)
 
 ;;;; Probability distribution and the functions that operate on them
 ;;;; Two types of distributions are represented here:
@@ -27,7 +27,9 @@
 
 (defprotocol DistributionPGM
   "Basic specification for a joint probability distribution of a PGM"
-  (sample [this] "Draws a one value from the PGM joint distribution."))
+  (sample [this] "Draws a one value from the PGM joint distribution.")
+  (state-prob [this state-map] "Returns the probability of a graph with state given by state-map")
+  (sampler [this x state-map] "Returns a function to sample the conditional distribution of x."))
 
 (defprotocol Coin
   "Basic functions for simulating coin tosses."
@@ -61,6 +63,23 @@
 ;      (into {} (reduce #(merge-with + %1 %2) dist))
 ;      dist)))
 
+(s/defn gibbs-sampling :- clojure.lang.PersistentHashMap
+  "Samples the distribution as a markov chain."
+  [dist :- DistributionPGM
+   num-samples :- s/Int]
+  (let [current-state (atom (.sample dist))
+        samples (atom {})]
+    (doseq [n (range 0 num-samples)]
+      ; pick one variable at random from the current state
+      ; sample a value for that variable from its conditional distribution
+      ; in the current state
+      (doseq [k (keys @current-state)]
+        (let [new-k-value (.sampler dist k @current-state)
+              new-k-state (assoc @current-state k new-k-value)]
+          (reset! current-state new-k-state)))
+      (if (> n (/ num-samples 2)) (swap! samples update-in [@current-state] (fnil inc 0)) ""))
+    @samples))
+
 ; todo: This still needs to be tweaked.
 (s/defn metropolis-sampling :- clojure.lang.PersistentHashMap
   "Samples the given distribution using Monte Carlo with Metropolis-Hastings
@@ -72,18 +91,29 @@
         ;current-prob (atom 1)
         acceptance-ratio (atom 0)]
     (doseq [n (range 1 num-samples)]
-      (let [proposed-state (.sample dist)
-            proposal-prob (get @samples proposed-state 1)
-            current-prob (double (get @samples @current-state))
+      (let [k (rand-nth (keys @current-state))
+            new-k-value (.sampler dist k @current-state)
+            proposed-state (assoc @current-state k new-k-value)
+            ;proposed-state (.sample dist)
+            p-new (.state-prob dist proposed-state)
+            p-current (.state-prob dist @current-state)
+            ;proposal-prob (-> (get @samples proposed-state 1)
+            ;                  (/ (double (inc num-samples)))
+            ;                  (* p-new))
+            ;current-prob (-> (double (get @samples @current-state))
+            ;                 (/ num-samples)
+            ;                 (* p-current))
+            ratio (/ p-new p-current)
+            ;ratio (/ proposal-prob current-prob)
+            alpha (min 1 ratio)
             r (rand)
-            ratio (/ current-prob proposal-prob)
-            accept? (< r ratio)
+            accept? (> ratio r)
             state-to-update (if accept? proposed-state @current-state)]
         (swap! samples update-in [state-to-update] (fnil inc 0))
         (reset! current-state state-to-update)
-        (if accept?
+        (if (and accept? (> n (/ num-samples 2)))
           (swap! acceptance-ratio inc))))
-    (info "Acceptance ratio: " (/ (double @acceptance-ratio) num-samples))
+    (info "Acceptance ratio: " (/ (double @acceptance-ratio) (- num-samples (/ num-samples 2))))
     (info "Number of samples: " num-samples)
     @samples))
 
@@ -92,6 +122,7 @@
   [dist
    n :- s/Int]
   (if (extends? DistributionPGM (type dist))
+    ;(gibbs-sampling dist n)
     (metropolis-sampling dist n)
     (repeatedly n #(.sample dist))))
 
@@ -406,17 +437,23 @@
 (s/defn cloudy :- TrueFalseDistribution
   [] (true-false 0.5))
 
+(s/defn p-cloudy [c :- Boolean] (:p (cloudy)))
+
 (s/defn sprinkler :- TrueFalseDistribution
   [cloudy :- Boolean]
   (if cloudy
     (true-false 0.1)
     (true-false 0.5)))
 
+(s/defn p-sprinkler [c :- Boolean] (:p (sprinkler c)))
+
 (s/defn rain :- TrueFalseDistribution
   [cloudy :- Boolean]
   (if cloudy
     (true-false 0.8)
     (true-false 0.2)))
+
+(s/defn p-rain [c :- Boolean] (:p (rain c)))
 
 (s/defn wet-grass :- TrueFalseDistribution
   [sprinkler :- Boolean
@@ -426,6 +463,11 @@
          [true false] (true-false 0.9)
          [false true] (true-false 0.9)
          [false false] (true-false 0.0)))
+
+(s/defn p-wet-grass
+  [s :- Boolean
+   r :- Boolean]
+  (:p (wet-grass s r)))
 
 (defn grass-map
   "Possible state of the Grass Bayesian network. For each distinct set of
@@ -450,7 +492,30 @@
                 s (.sample (sprinkler c))
                 r (.sample (rain c))
                 w (.sample (wet-grass s r))]
-            (grass-map c s r w))))
+            (grass-map c s r w)))
+
+  (state-prob
+    [this state-map]
+    (let [{:keys [cloudy sprinkler rain wet-grass]} state-map
+          c1 (p-cloudy cloudy)
+          s1 (p-sprinkler cloudy)
+          r1 (p-rain cloudy)
+          wg (p-wet-grass sprinkler rain)
+          pc (if cloudy c1 (- 1 c1))
+          ps (if sprinkler s1 (- 1 s1))
+          pr (if rain r1 (- 1 r1))
+          pw (if wet-grass wg (- 1 wg))]
+      (* (* pc ps) (* pr pw))))
+
+  (sampler
+    [this x state-map]
+    (:pre (= true (keyword? x)))
+    (let [sampling-dist (match x
+                               :cloudy (cloudy)
+                               :sprinkler (sprinkler (:cloudy state-map))
+                               :rain (rain (:cloudy state-map))
+                               :wet-grass (wet-grass (:sprinkler state-map) (:rain state-map)))]
+      (.sample sampling-dist))))
 
 (s/defn grass [] (GrassDistribution.))
 
