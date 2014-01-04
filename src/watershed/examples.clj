@@ -1,11 +1,8 @@
 (ns watershed.examples
   (:import (java.lang Boolean))
   (:use [watershed.distribution]
-        [watershed.predicates])
-  (:require [schema.core :as s]
-            [clojure.core.reducers :as r]))
+        [watershed.predicates]))
 
-;todo: See how to import a record from a different ns that is defined with s/defn
 ;;;;; Contains examples of how to use probable-clj for:
 ;;;;;  * general probability distribution calculations
 ;;;;;  * probabilistic graphical models
@@ -107,11 +104,7 @@
 ;(println (prob (traffic) #(= true (:accident %)) :given? (and (truth :bad-weather) (truth :traffic-jam))))
 ;;(println (prob (traffic) #(= true (:accident %)) :given? (truth :traffic-jam)))
 ;;(println (traffic-dist 2))
-;(println "test: " (let [given (into [] (r/filter (truth :bad-weather) (traffic-dist 10)))
-;               g (count given)
-;               d (into [] (r/filter (truth :traffic-jam) given))
-;               n (count d)]
-;           (/ (.doubleValue n) g)))
+
 ;(println (prob (accident true) (eq? true)))
 ;(println (prob (traffic-jam true true false) (eq? true)))
 
