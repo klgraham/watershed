@@ -18,6 +18,14 @@ Probability distributions currently included:
 	* Biased coin
 	* Pair of N-Sided Dice
 
+Probability distributions to be added:
+
+	* Poisson
+	* Binomial
+	* Gaussian
+	* Dirichlet
+	* Gaussian
+
 ## Installation
 
 ### Leiningen

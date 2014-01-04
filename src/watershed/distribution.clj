@@ -134,41 +134,6 @@
     (if debug (println "\tPGM?: " pgm? ", numerator: " numerator ", denom: " denom) nil)
     (/ numerator denom)))
 
-;; Useful predicates
-(s/defn gt? "Is x greater than y?"
-  [y :- s/Number]
-  (fn [x] (> x y)))
-
-(s/defn gteq? "Is x greater than or equal to y?"
-  [y :- s/Number]
-  (fn [x] (>= x y)))
-
-(s/defn lt? "Is x less than y?"
-  [y :- s/Number]
-  (fn [x] (< x y)))
-
-(s/defn lteq? "Is x less than or equal to y?"
-  [y :- s/Number]
-  (fn [x] (<= x y)))
-
-(s/defn between?
-  "Is x in [low, high]"
-  [low :- s/Number
-   high :- s/Number]
-  (fn [x] (and (>= x low)
-               (<= x high))))
-
-(s/defn eq? [y :- s/Number] (fn [x] (= x y)))
-
-(s/defn tf?
-  "Returns a function that will operate on a hash-map/tuple where the key is itself
-  a hash-map and return true if the key-of-interest has value true. Used for
-  PGM-type distributions."
-  [key-of-interest :- s/Keyword
-   tf :- Boolean]
-  (fn [map] (= tf (get (get map 0) key-of-interest false))))
-
-
 ;;;; Implementations of specific distributions
 
 ;; Distribution with random variables uniformly distributed on [0,1).

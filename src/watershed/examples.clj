@@ -1,6 +1,7 @@
 (ns watershed.examples
   (:import (java.lang Boolean))
-  (:use [watershed.distribution])
+  (:use [watershed.distribution]
+        [watershed.predicates])
   (:require [schema.core :as s]
             [clojure.core.reducers :as r]))
 
