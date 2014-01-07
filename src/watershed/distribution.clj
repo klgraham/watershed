@@ -9,7 +9,7 @@
 ; for logging
 ;(timbre/refer-timbre)
 
-(def num-iterations 10000)
+(def num-iterations 15000)
 
 ;;;; Probability distribution and the functions that operate on them
 ;;;; Two types of distributions are represented here:
@@ -77,7 +77,7 @@
         (let [new-k-value (.sampler dist k @current-state)
               new-k-state (assoc @current-state k new-k-value)]
           (reset! current-state new-k-state)))
-      (if (> n (/ num-samples 2)) (swap! samples update-in [@current-state] (fnil inc 0)) ""))
+      (if (> n (/ num-samples 4)) (swap! samples update-in [@current-state] (fnil inc 0)) ""))
     @samples))
 
 ; todo: This still needs to be tweaked.
@@ -148,20 +148,23 @@
 
 (defn prob
   "Returns the probability that a random variable drawn from the
-   distribution obeys the predicate."
+   distribution obeys the query predicate, given another condition."
   [dist
-   predicate?
-   & {:keys [given? debug] :or {given? #(-> (nil? %) not) debug false}}]
+   query?
+   & {:keys [given? debug] :or {given? (fn [x] true) debug false}}]
   (let [test-sample (.sample dist)
         pgm? (not (or (number? test-sample) (symbol? test-sample)))
         num-samples num-iterations
         all (sample dist num-samples)
-        d (given dist (every-pred given? predicate?) :pgm? pgm?)
-        numerator (-> (if pgm? (reduce + (vals d)) (count d))
-                      (.doubleValue))
+        N (double (if pgm?
+                     (r/fold + (r/map val (into [] all)))
+                     (count all)))
+        numerator-dist (given dist (every-pred given? query?) :pgm? pgm?)
+        numerator (-> (if pgm? (reduce + (vals numerator-dist)) (count numerator-dist))
+                      (double))
         denom (if pgm?
-                (r/fold + (r/map val (into [] (r/filter given? all))))
-                (count (into [] (r/filter given? all))))]
+                  (r/fold + (r/map val (into [] (r/filter given? all))))
+                  (count (into [] (r/filter given? all))))]
     (if debug (println "\n\n\tPGM?: " pgm? ", numerator: " numerator ", denom: " denom) nil)
     (/ numerator denom)))
 
@@ -502,14 +505,14 @@
 
 
 (s/defrecord GrassDistribution
-  []
+  [c s r w]
   DistributionPGM
   (sample [this]
-          (let [c (.sample cloudy)
-                s (.sample (get sprinkler c))
-                r (.sample (get rain c))
-                w (.sample (get wet-grass [s r]))]
-            (grass-map c s r w)))
+          (let [c1 (.sample c)
+                s1 (.sample (get s c1))
+                r1 (.sample (get r c1))
+                w1 (.sample (get w [s1 r1]))]
+            (grass-map c1 s1 r1 w1)))
 
   (state-prob
     [this state-map]
@@ -534,5 +537,5 @@
                                :wet-grass (get wet-grass [(:sprinkler state-map) (:rain state-map)]))]
       (.sample sampling-dist))))
 
-(s/defn grass [] (GrassDistribution.))
+(s/defn grass [] (GrassDistribution. cloudy sprinkler rain wet-grass))
 
