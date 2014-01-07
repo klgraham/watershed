@@ -122,8 +122,8 @@
   [dist
    n :- s/Int]
   (if (extends? DistributionPGM (type dist))
-    ;(gibbs-sampling dist n)
-    (metropolis-sampling dist n)
+    (gibbs-sampling dist n)
+    ;(metropolis-sampling dist n)
     (repeatedly n #(.sample dist))))
 
 (defn given
@@ -162,7 +162,7 @@
         denom (if pgm?
                 (r/fold + (r/map val (into [] (r/filter given? all))))
                 (count (into [] (r/filter given? all))))]
-    (if debug (println "\tPGM?: " pgm? ", numerator: " numerator ", denom: " denom) nil)
+    (if debug (println "\n\n\tPGM?: " pgm? ", numerator: " numerator ", denom: " denom) nil)
     (/ numerator denom)))
 
 ;;;; Implementations of specific distributions
@@ -434,28 +434,39 @@
 ;(s/defn traffic [] (TrafficDistribution. (rush-hour) (bad-weather)))
 
 ;; Another example from http://www.cs.ubc.ca/~murphyk/Bayes/bnintro.html
-(s/defn cloudy :- TrueFalseDistribution
+;; Each distribution below needs to be initialized once so that samples are
+;; drawn from the same distribution.
+
+(s/defn prob-cloudy :- TrueFalseDistribution
   [] (true-false 0.5))
 
-(s/defn p-cloudy [c :- Boolean] (:p (cloudy)))
+(def cloudy (prob-cloudy))
 
-(s/defn sprinkler :- TrueFalseDistribution
+(s/defn p-cloudy [] (:p cloudy))
+
+(s/defn prob-sprinkler :- TrueFalseDistribution
   [cloudy :- Boolean]
   (if cloudy
     (true-false 0.1)
     (true-false 0.5)))
 
-(s/defn p-sprinkler [c :- Boolean] (:p (sprinkler c)))
+(def sprinkler {true (prob-sprinkler true)
+                false (prob-sprinkler false)})
 
-(s/defn rain :- TrueFalseDistribution
+(s/defn p-sprinkler [cloudy :- Boolean] (:p (get sprinkler cloudy)))
+
+(s/defn prob-rain :- TrueFalseDistribution
   [cloudy :- Boolean]
   (if cloudy
     (true-false 0.8)
     (true-false 0.2)))
 
-(s/defn p-rain [c :- Boolean] (:p (rain c)))
+(def rain {true (prob-rain true)
+           false (prob-rain false)})
 
-(s/defn wet-grass :- TrueFalseDistribution
+(s/defn p-rain [cloudy :- Boolean] (:p (get rain cloudy)))
+
+(s/defn prob-wet-grass :- TrueFalseDistribution
   [sprinkler :- Boolean
    rain :- Boolean]
   (match [sprinkler rain]
@@ -464,10 +475,15 @@
          [false true] (true-false 0.9)
          [false false] (true-false 0.0)))
 
+(def wet-grass {[true true] (prob-wet-grass true true)
+                [true false] (prob-wet-grass true false)
+                [false true] (prob-wet-grass false true)
+                [false false] (prob-wet-grass false false)})
+
 (s/defn p-wet-grass
   [s :- Boolean
    r :- Boolean]
-  (:p (wet-grass s r)))
+  (:p (get wet-grass [s r])))
 
 (defn grass-map
   "Possible state of the Grass Bayesian network. For each distinct set of
@@ -484,20 +500,21 @@
 ;          w (sample (wet-grass s r) n)]
 ;      (grass-map cloudy s r w))))
 
+
 (s/defrecord GrassDistribution
   []
   DistributionPGM
   (sample [this]
-          (let [c (.sample (cloudy))
-                s (.sample (sprinkler c))
-                r (.sample (rain c))
-                w (.sample (wet-grass s r))]
+          (let [c (.sample cloudy)
+                s (.sample (get sprinkler c))
+                r (.sample (get rain c))
+                w (.sample (get wet-grass [s r]))]
             (grass-map c s r w)))
 
   (state-prob
     [this state-map]
     (let [{:keys [cloudy sprinkler rain wet-grass]} state-map
-          c1 (p-cloudy cloudy)
+          c1 (p-cloudy)
           s1 (p-sprinkler cloudy)
           r1 (p-rain cloudy)
           wg (p-wet-grass sprinkler rain)
@@ -511,10 +528,10 @@
     [this x state-map]
     (:pre (= true (keyword? x)))
     (let [sampling-dist (match x
-                               :cloudy (cloudy)
-                               :sprinkler (sprinkler (:cloudy state-map))
-                               :rain (rain (:cloudy state-map))
-                               :wet-grass (wet-grass (:sprinkler state-map) (:rain state-map)))]
+                               :cloudy cloudy
+                               :sprinkler (get sprinkler (:cloudy state-map))
+                               :rain (get rain (:cloudy state-map))
+                               :wet-grass (get wet-grass [(:sprinkler state-map) (:rain state-map)]))]
       (.sample sampling-dist))))
 
 (s/defn grass [] (GrassDistribution.))
