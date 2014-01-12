@@ -1,15 +1,14 @@
 (ns watershed.distribution
   (:import (java.util Random)
            (java.lang Double Boolean))
-  (:require [schema.core :as s]
-            [clojure.core.reducers :as r])
+  (:require [schema.core :as s])
   (:use [clojure.core.match :only (match)]
         [taoensso.timbre :only (info)]))
 
 ; for logging
 ;(timbre/refer-timbre)
 
-(def num-iterations 15000)
+(def num-iterations 10000)
 
 ;;;; Probability distribution and the functions that operate on them
 ;;;; Two types of distributions are represented here:
@@ -29,7 +28,7 @@
   "Basic specification for a joint probability distribution of a PGM"
   (sample [this] "Draws a one value from the PGM joint distribution.")
   (state-prob [this state-map] "Returns the probability of a graph with state given by state-map")
-  (sampler [this x state-map] "Returns a function to sample the conditional distribution of x."))
+  (prob-of-states [this] "Returns a hash-map where the keys are states and values are state probabilities."))
 
 (defprotocol Coin
   "Basic functions for simulating coin tosses."
@@ -62,6 +61,17 @@
 ;    (if (map? first-sample)
 ;      (into {} (reduce #(merge-with + %1 %2) dist))
 ;      dist)))
+
+(s/defn pgm-sampling :- clojure.lang.PersistentHashMap
+  "This doesn't really sample the distribution, it just calculates the
+  probability of each state."
+  [dist :- DistributionPGM
+   n :- s/Int]
+  (.prob-of-states dist)
+  ;(->> (.prob-of-states dist)
+  ;     (map #(vector (key %) (int (* (val %) n))))
+  ;     (into {}))
+  )
 
 (s/defn gibbs-sampling :- clojure.lang.PersistentHashMap
   "Samples the distribution as a markov chain."
@@ -122,7 +132,8 @@
   [dist
    n :- s/Int]
   (if (extends? DistributionPGM (type dist))
-    (gibbs-sampling dist n)
+    (pgm-sampling dist n)
+    ;(gibbs-sampling dist n)
     ;(metropolis-sampling dist n)
     (repeatedly n #(.sample dist))))
 
@@ -134,11 +145,9 @@
    & {:keys [pgm?] :or {pgm? false}}]
   ; Because of the way the distribution for PGMs are being generated, the
   ; (.sample) fn draws more than one possible state from the PGM distribution
-  (let [num-samples num-iterations
-        fresh-coll (if pgm? {} [])]
+  (let [num-samples num-iterations]
     (->> (sample dist num-samples)
-         (r/filter predicate?)
-         (into fresh-coll))))
+         (filter predicate?))))
 
 (s/defn flip :- clojure.lang.PersistentVector
   "Draws n values from the distribution."
@@ -152,19 +161,18 @@
   [dist
    query?
    & {:keys [given? debug] :or {given? (fn [x] true) debug false}}]
-  (let [test-sample (.sample dist)
-        pgm? (not (or (number? test-sample) (symbol? test-sample)))
+  (let [pgm? (extends? DistributionPGM (type dist))
         num-samples num-iterations
         all (sample dist num-samples)
         N (double (if pgm?
-                     (r/fold + (r/map val (into [] all)))
+                     (reduce + (vals all))
                      (count all)))
         numerator-dist (given dist (every-pred given? query?) :pgm? pgm?)
         numerator (-> (if pgm? (reduce + (vals numerator-dist)) (count numerator-dist))
                       (double))
         denom (if pgm?
-                  (r/fold + (r/map val (into [] (r/filter given? all))))
-                  (count (into [] (r/filter given? all))))]
+                  (reduce + (vals (filter given? all)))
+                  (count (filter given? all)))]
     (if debug (println "\n\n\tPGM?: " pgm? ", numerator: " numerator ", denom: " denom) nil)
     (/ numerator denom)))
 
@@ -440,102 +448,74 @@
 ;; Each distribution below needs to be initialized once so that samples are
 ;; drawn from the same distribution.
 
-(s/defn prob-cloudy :- TrueFalseDistribution
-  [] (true-false 0.5))
+(def p-cloudy 0.5)
 
-(def cloudy (prob-cloudy))
-
-(s/defn p-cloudy [] (:p cloudy))
-
-(s/defn prob-sprinkler :- TrueFalseDistribution
+(s/defn p-sprinkler :- Double
+  "Returns probability of sprinkler being on given whether it's cloudy or not."
   [cloudy :- Boolean]
-  (if cloudy
-    (true-false 0.1)
-    (true-false 0.5)))
+  (get {true 0.1 false 0.5} cloudy))
 
-(def sprinkler {true (prob-sprinkler true)
-                false (prob-sprinkler false)})
+;(s/defn prob-rain :- TrueFalseDistribution
+;  [cloudy :- Boolean]
+;  (if cloudy
+;    (true-false 0.8)
+;    (true-false 0.2)))
 
-(s/defn p-sprinkler [cloudy :- Boolean] (:p (get sprinkler cloudy)))
-
-(s/defn prob-rain :- TrueFalseDistribution
+(s/defn p-rain :- Double
+  "Returns probability of it raining given whether it's cloudy or not."
   [cloudy :- Boolean]
-  (if cloudy
-    (true-false 0.8)
-    (true-false 0.2)))
+  (get {true 0.8 false 0.2} cloudy))
 
-(def rain {true (prob-rain true)
-           false (prob-rain false)})
-
-(s/defn p-rain [cloudy :- Boolean] (:p (get rain cloudy)))
-
-(s/defn prob-wet-grass :- TrueFalseDistribution
+(s/defn p-wet-grass :- Double
+  "Returns probability of grass being wet given if the sprinkler is on/off and
+  whether it's raining."
   [sprinkler :- Boolean
    rain :- Boolean]
   (match [sprinkler rain]
-         [true true] (true-false 0.99)
-         [true false] (true-false 0.9)
-         [false true] (true-false 0.9)
-         [false false] (true-false 0.0)))
+         [true true]    0.99
+         [true false]   0.9
+         [false true]   0.9
+         [false false]  0))
 
-(def wet-grass {[true true] (prob-wet-grass true true)
-                [true false] (prob-wet-grass true false)
-                [false true] (prob-wet-grass false true)
-                [false false] (prob-wet-grass false false)})
-
-(s/defn p-wet-grass
-  [s :- Boolean
-   r :- Boolean]
-  (:p (get wet-grass [s r])))
-
-(defn grass-map
+(s/defn grass-map
   "Possible state of the Grass Bayesian network. For each distinct set of
   values [c s r w], we have a distinct state of the Bayesian network."
-  [c s r w]
+  [c :- Boolean s :- Boolean r :- Boolean w :- Boolean]
   {:cloudy c :sprinkler s :rain r :wet-grass w})
 
-;(s/defn grass-dist
-;  [cloudy :- Boolean
-;   n :- s/Int]
-;  (frequencies
-;    (for [s (sample (sprinkler cloudy) n)
-;          r (sample (rain cloudy) n)
-;          w (sample (wet-grass s r) n)]
-;      (grass-map cloudy s r w))))
-
-
 (s/defrecord GrassDistribution
-  [c s r w]
+  []
   DistributionPGM
-  (sample [this]
-          (let [c1 (.sample c)
-                s1 (.sample (get s c1))
-                r1 (.sample (get r c1))
-                w1 (.sample (get w [s1 r1]))]
-            (grass-map c1 s1 r1 w1)))
+  ;(sample [this]
+  ;        (let [c (.sample cloudy)
+  ;              s (.sample (get sprinkler c))
+  ;              r (.sample (get rain c))
+  ;              w (.sample (get wet-grass [s r]))]
+  ;          (grass-map c s r w)))
 
   (state-prob
     [this state-map]
     (let [{:keys [cloudy sprinkler rain wet-grass]} state-map
-          c1 (p-cloudy)
           s1 (p-sprinkler cloudy)
           r1 (p-rain cloudy)
           wg (p-wet-grass sprinkler rain)
-          pc (if cloudy c1 (- 1 c1))
+          pc (if cloudy p-cloudy (- 1 p-cloudy))
           ps (if sprinkler s1 (- 1 s1))
           pr (if rain r1 (- 1 r1))
           pw (if wet-grass wg (- 1 wg))]
-      (* (* pc ps) (* pr pw))))
+      (apply * [pc ps pr pw])))
 
-  (sampler
-    [this x state-map]
-    (:pre (= true (keyword? x)))
-    (let [sampling-dist (match x
-                               :cloudy cloudy
-                               :sprinkler (get sprinkler (:cloudy state-map))
-                               :rain (get rain (:cloudy state-map))
-                               :wet-grass (get wet-grass [(:sprinkler state-map) (:rain state-map)]))]
-      (.sample sampling-dist))))
+  (prob-of-states
+    [this]
+    (let [tf [true false]
+          probs (atom {})]
+      (doseq [cloudy tf
+              sprinkler tf
+              rain tf
+              wet-grass tf]
+        (let [state (grass-map cloudy sprinkler rain wet-grass)]
+          (swap! probs assoc-in [state] (.state-prob this state))))
+      (deref probs))))
 
-(s/defn grass [] (GrassDistribution. cloudy sprinkler rain wet-grass))
+(s/defn grass [] (GrassDistribution.))
 
