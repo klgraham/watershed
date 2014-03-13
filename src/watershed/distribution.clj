@@ -5,7 +5,7 @@
   (:use [clojure.core.match :only (match)]
         [taoensso.timbre :only (info)]))
 
-(def num-iterations 10000)
+(def num-iterations 50000)
 
 ;;;; Probability distribution and the functions that operate on them
 ;;;; Two types of distributions are represented here:
