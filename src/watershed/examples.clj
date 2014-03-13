@@ -116,7 +116,6 @@
 (println "Prob of wet grass: (0.6471)\n" (prob g (tf? :wet-grass true)))
 (println "\nProb of wet grass given sprinkler on and no rain: (0.9)\n" (prob g (tf? :wet-grass true) :given? (every-pred (tf? :sprinkler true) (tf? :rain false))))
 (println "\nProb of dry grass given sprinkler on and no rain: (0.1)\n" (prob g (tf? :wet-grass false) :given? (every-pred (tf? :sprinkler true) (tf? :rain false))))
-(println "\nProb of rain given wet grass: (0.7079)\n" (prob g (tf? :rain true) :given (tf? :wet-grass true)))
 (println "\nProb of rain and wet grass: (0.4581)\n" (prob g (every-pred (tf? :rain true) (tf? :wet-grass true))))
 (println "\nProb of sprinkler given wet grass: (0.4298)\n" (prob g (tf? :sprinkler true) :given? (tf? :wet-grass true)))
 (println "\nProb of sprinkler given wet grass and rain : (0.1945)\n" (prob g (tf? :sprinkler true) :given? (every-pred (tf? :rain true) (tf? :wet-grass true))))
