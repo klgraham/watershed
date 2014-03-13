@@ -74,41 +74,8 @@
 ;
 ;(println "What is the probability of getting a scholarship if grades are good but is poor?")
 ;(println (prob (academics) #(= true (:scholarship %)) :given? #(and (= false (:affluent %)) (= true (:grades %)))))
-;
-;(println "Traffic:\n")
 
-;(doall (map println (sample (traffic) 5)))
-;(def t (traffic))
-;(println "1000 samples")
-;(def s (.sample t)))
-;(doall (map println s))
-;(println "\n10000 samples")
-;(def s (sample t 10)))
-;(doall (map println s))
-;(println "\n100000 samples")
-;(def s (sample t 100)))
-;(doall (map println s))
-;(println "\n1,000,000 samples")
-;(def s (sample t 1000)))
-;(doall (map println s))
-;(println "Prob of traffic jam given bad weather:")
-;(println (prob t (tf? :traffic-jam true) :given? (tf? :bad-weather true))))
-;
-;(println "Prob of traffic jam given bad weather and sirens:")
-;(println (prob t (tf? :traffic-jam true)
-;                     :given? (every-pred (tf? :bad-weather true) (tf? :sirens true)))))
-;
-;(println "Prob of bad-weather given traffic jam:")
-;(println (prob t (tf? :bad-weather true) :given (tf? :traffic-jam true))))
-;;(println (prob (traffic) (truth :traffic-jam) :given? (and (truth :bad-weather) (truth :sirens))))
-;(println (prob (traffic) #(= true (:accident %)) :given? (and (truth :bad-weather) (truth :traffic-jam))))
-;;(println (prob (traffic) #(= true (:accident %)) :given? (truth :traffic-jam)))
-;;(println (traffic-dist 2))
 
-;(println (prob (accident true) (eq? true)))
-;(println (prob (traffic-jam true true false) (eq? true)))
-
-;
 (println "\n*** Rain example ***\n")
 (def g (grass))
 
