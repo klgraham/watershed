@@ -1,4 +1,4 @@
-(defproject watershed "0.1.0"
+(defproject watershed "0.2.0-SNAPSHOT"
   :description "Library for working with probabilistic graphical models in Clojure."
   :url "https://github.com/klgraham/watershed"
 
