@@ -38,7 +38,7 @@ Bayesian Networks to be added:
 
 ### Leiningen
 
-Add the following to your `:dependencies`:
+Add the following to your `:dependencies` in `project.clj`:
 
 ```clj
 [watershed "0.1.0-SNAPSHOT"]
