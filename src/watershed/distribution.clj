@@ -5,9 +5,6 @@
   (:use [clojure.core.match :only (match)]
         [taoensso.timbre :only (info)]))
 
-; for logging
-;(timbre/refer-timbre)
-
 (def num-iterations 10000)
 
 ;;;; Probability distribution and the functions that operate on them
@@ -298,6 +295,63 @@
 ;;; If this is not clear, then try this:
 ;;;
 ;;;         X -> Y
+
+;(def pgm {:smart []
+;          :grades [:smart]
+;          :affluent []
+;          :high-sat [:smart :affluent :grades]
+;          :scholarship [:grades :high-sat]})
+
+;(def p-smart 0.4)
+;(def p-affluent 0.2)
+;(def p-grades-if-smart 0.7)
+;(def p-grades-if-not-smart 0.1)
+;
+;(s/defn smart :- TrueFalseDistribution
+;  [] (true-false p-smart))
+;
+;(s/defn affluent :- TrueFalseDistribution
+;  [] (true-false p-affluent))
+;
+;(s/defn grades :- TrueFalseDistribution
+;  [is-smart :- Boolean]
+;  (if is-smart
+;    (true-false p-grades-if-smart)
+;    (true-false p-grades-if-not-smart)))
+;
+;(s/defn high-sat :- TrueFalseDistribution
+;  [is-smart :- Boolean
+;   is-affluent :- Boolean
+;   good-grades :- Boolean]
+;  (match [is-smart is-affluent good-grades]
+;         [true true true] (true-false 0.8)
+;         [true false true] (true-false 0.7)
+;         [false true true] (true-false 0.2)
+;         [true _ false] (true-false 0.2)
+;         [false true false] (true-false 0.01)
+;         [false false true] (true-false 0.1)
+;         [false false false] (true-false 0.01)))
+;
+;(s/defn scholarship :- TrueFalseDistribution
+;  [good-grades :- Boolean
+;   high-sat :- Boolean]
+;  (match [good-grades high-sat]
+;         [true true] (true-false 0.9)
+;         [true false] (true-false 0.4)
+;         [false true] (true-false 0.4)
+;         [false false] (true-false 0.0)))
+;
+;(s/defrecord AcademicsDistribution []
+;  Distribution
+;  (sample [this]
+;          (let [s (.sample (smart))
+;                a (.sample (affluent))
+;                g (.sample (grades s))
+;                sat (.sample (high-sat s a g))
+;                sh (.sample (scholarship g sat))]
+;            {:smart s :affluent a :grades g :high-sat sat :scholarship sh})))
+;
+;(s/defn academics [] (AcademicsDistribution.))
 
 ;; Another example from http://www.cs.ubc.ca/~murphyk/Bayes/bnintro.html
 
