@@ -34,6 +34,9 @@ Bayesian Networks to be added:
 
 	* Student example from Koller & Friedman's PGM textbook
 
+Note: I've worked on this off and on since the the start of 2014; mainly as a way to facilitate learning about Bayesian Networks.
+I doubt that I've implemented things in the most efficient way, but it works and the code is clear.
+
 ## Installation
 
 ### Leiningen
@@ -64,6 +67,7 @@ straightforward. There are two PGM examples:
 
 There are also examples of how to use this for basic probability stuff,
 though for things like that it's perhaps better to use [Incanter](http://incanter.org).
+
 
 ## License
 
