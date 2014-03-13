@@ -26,6 +26,14 @@ Probability distributions to be added:
 	* Dirichlet
 	* Gaussian
 
+Bayesian Networks currently included:
+
+	* Rain example
+
+Bayesian Networks to be added:
+
+	* Student example from Koller & Friedman's PGM textbook
+
 ## Installation
 
 ### Leiningen
@@ -52,7 +60,7 @@ For now, please look at the examples in examples.clj. They should all be
 straightforward. There are two PGM examples:
 
 	1. the common "Rain" example
-	2. the Student's example used in Koller & Friedman's PGM textbook
+	2. the Student's example
 
 There are also examples of how to use this for basic probability stuff,
 though for things like that it's perhaps better to use [Incanter](http://incanter.org).
