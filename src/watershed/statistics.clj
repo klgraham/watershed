@@ -1,5 +1,5 @@
 (ns watershed.statistics
-  (:require [watershed.distributions :as d]))
+  (:require [watershed.distribution :as d]))
 
 ;;;;; Basic statistics functions
 
