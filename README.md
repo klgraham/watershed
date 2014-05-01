@@ -1,5 +1,7 @@
 # Watershed
 
+[![Build Status](https://travis-ci.org/klgraham/watershed.svg?branch=master)](https://travis-ci.org/klgraham/watershed)
+
 Watershed provides a framework for working with Probabilistic Graphical
 Models (PGMs) in Clojure. It's designed with experimentation and learning in
 mind, so you can quickly define your own PGM and perform queries. At
