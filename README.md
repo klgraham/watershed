@@ -16,7 +16,7 @@ Probability distributions currently included:
 	* Bernoulli
 	* Exponential
 	* Discrete Uniform
-    * Poisson
+	* Poisson
 	* Binomial
 	* Fair coin
 	* Biased coin
