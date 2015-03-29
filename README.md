@@ -27,6 +27,7 @@ Bayesian Networks currently included:
 	* Rain example
 
 Planned updates:
+
     * Convert all basic distribution code to call Incanter functions. No need to reinvent the wheel.
     * Add Bayesian Networks:
       * Student example from Koller & Friedman's PGM textbook
