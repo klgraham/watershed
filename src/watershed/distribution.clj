@@ -1,7 +1,8 @@
 (ns watershed.distribution
   (:import (java.util Random)
            (java.lang Double Boolean))
-  (:require [schema.core :as s])
+  (:require [schema.core :as s]
+            )
   (:use [clojure.core.match :only (match)]
         [taoensso.timbre :only (info)]))
 
