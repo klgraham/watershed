@@ -22,7 +22,7 @@
   "Basic specification for a probability distribution"
   (sample [this] "Draws a single value from the distribution."))
 
-(defprotocol DistributionPGM
+(defprotocol PgmDistribution
   "Basic specification for a joint probability distribution of a PGM"
   (sample [this] "Draws a one value from the PGM joint distribution.")
   (state-prob [this state-map] "Returns the probability of a graph with state given by state-map")
@@ -63,7 +63,7 @@
 (s/defn pgm-sampling :- clojure.lang.PersistentHashMap
   "This doesn't really sample the distribution, it just calculates the
   probability of each state."
-  [dist :- DistributionPGM
+  [dist :- PgmDistribution
    n :- s/Int]
   (.prob-of-states dist)
   ;(->> (.prob-of-states dist)
@@ -73,7 +73,7 @@
 
 (s/defn gibbs-sampling :- clojure.lang.PersistentHashMap
   "Samples the distribution as a markov chain."
-  [dist :- DistributionPGM
+  [dist :- PgmDistribution
    num-samples :- s/Int]
   (let [current-state (atom (.sample dist))
         samples (atom {})]
@@ -92,7 +92,7 @@
 (s/defn metropolis-sampling :- clojure.lang.PersistentHashMap
   "Samples the given distribution using Monte Carlo with Metropolis-Hastings
   sampling"
-  [dist :- DistributionPGM
+  [dist :- PgmDistribution
    num-samples :- s/Int]
   (let [current-state (atom (.sample dist))
         samples (atom {@current-state 1})
@@ -129,7 +129,7 @@
   "Draws n values from the distribution."
   [dist
    n :- s/Int]
-  (if (extends? DistributionPGM (type dist))
+  (if (extends? PgmDistribution (type dist))
     (pgm-sampling dist n)
     ;(gibbs-sampling dist n)
     ;(metropolis-sampling dist n)
@@ -159,7 +159,7 @@
   [dist
    query?
    & {:keys [given? debug] :or {given? (fn [x] true) debug false}}]
-  (let [pgm? (extends? DistributionPGM (type dist))
+  (let [pgm? (extends? PgmDistribution (type dist))
         num-samples num-iterations
         all (sample dist num-samples)
         N (double (if pgm?
@@ -387,7 +387,7 @@
 
 (s/defrecord GrassDistribution
   []
-  DistributionPGM
+  PgmDistribution
 
   (state-prob
     [this state-map]
