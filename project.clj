@@ -13,7 +13,8 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [prismatic/schema "0.1.9"]
                  [org.clojure/core.match "0.2.0"]
-                 [com.taoensso/timbre "3.0.0-RC4"]]
+                 [com.taoensso/timbre "3.0.0-RC4"]
+                 [incanter/incanter-core "1.5.5"]]
 
   :profiles {:dev {:dependencies [[midje "1.6.3"]]}
              :test-libs {:dependencies [[midje "1.6.3"]]}
