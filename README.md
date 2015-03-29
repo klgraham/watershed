@@ -22,21 +22,15 @@ Probability distributions currently included:
 	* Biased coin
 	* Pair of N-Sided Dice
 
-Probability distributions to be added:
-
-	* Gaussian
-	* Dirichlet
-
 Bayesian Networks currently included:
 
 	* Rain example
 
-Bayesian Networks to be added:
+Planned updates:
+    * Convert all basic distribution code to call Incanter functions. No need to reinvent the wheel.
+    * Add Bayesian Networks:
+      * Student example from Koller & Friedman's PGM textbook
 
-	* Student example from Koller & Friedman's PGM textbook
-
-Note: I've worked on this off and on since the the start of 2014; mainly as a way to facilitate learning about Bayesian Networks.
-I doubt that I've implemented things in the most efficient way, but it works and the code is clear.
 
 ## Installation
 
@@ -45,7 +39,7 @@ I doubt that I've implemented things in the most efficient way, but it works and
 Add the following to your `:dependencies` in `project.clj`:
 
 ```clj
-[watershed "0.1.0-SNAPSHOT"]
+[watershed "0.2.0-SNAPSHOT"]
 ```
 
 ### Maven
@@ -54,7 +48,7 @@ Add the following to your `:dependencies` in `project.clj`:
 <dependency>
   <groupId>watershed</groupId>
   <artifactId>watershed</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.2.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -66,12 +60,9 @@ straightforward. There are two PGM examples:
 	1. the common "Rain" example
 	2. the Student's example
 
-There are also examples of how to use this for basic probability stuff,
-though for things like that it's perhaps better to use [Incanter](http://incanter.org).
-
 
 ## License
 
-Copyright © 2013 Kenneth L. Graham
+Copyright © 2015 Kenneth L. Graham
 
 Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), same as Clojure.
