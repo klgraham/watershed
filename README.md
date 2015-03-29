@@ -16,17 +16,16 @@ Probability distributions currently included:
 	* Bernoulli
 	* Exponential
 	* Discrete Uniform
+    * Poisson
+	* Binomial
 	* Fair coin
 	* Biased coin
 	* Pair of N-Sided Dice
 
 Probability distributions to be added:
 
-	* Poisson
-	* Binomial
 	* Gaussian
 	* Dirichlet
-	* Gaussian
 
 Bayesian Networks currently included:
 

@@ -1,7 +1,8 @@
 (ns watershed.distribution
   (:import (java.util Random)
            (java.lang Double Boolean))
-  (:require [schema.core :as s])
+  (:require [schema.core :as s]
+            [incanter.distributions :as d])
   (:use [clojure.core.match :only (match)]
         [taoensso.timbre :only (info)]))
 
@@ -21,7 +22,7 @@
   "Basic specification for a probability distribution"
   (sample [this] "Draws a single value from the distribution."))
 
-(defprotocol DistributionPGM
+(defprotocol PgmDistribution
   "Basic specification for a joint probability distribution of a PGM"
   (sample [this] "Draws a one value from the PGM joint distribution.")
   (state-prob [this state-map] "Returns the probability of a graph with state given by state-map")
@@ -62,7 +63,7 @@
 (s/defn pgm-sampling :- clojure.lang.PersistentHashMap
   "This doesn't really sample the distribution, it just calculates the
   probability of each state."
-  [dist :- DistributionPGM
+  [dist :- PgmDistribution
    n :- s/Int]
   (.prob-of-states dist)
   ;(->> (.prob-of-states dist)
@@ -72,7 +73,7 @@
 
 (s/defn gibbs-sampling :- clojure.lang.PersistentHashMap
   "Samples the distribution as a markov chain."
-  [dist :- DistributionPGM
+  [dist :- PgmDistribution
    num-samples :- s/Int]
   (let [current-state (atom (.sample dist))
         samples (atom {})]
@@ -91,7 +92,7 @@
 (s/defn metropolis-sampling :- clojure.lang.PersistentHashMap
   "Samples the given distribution using Monte Carlo with Metropolis-Hastings
   sampling"
-  [dist :- DistributionPGM
+  [dist :- PgmDistribution
    num-samples :- s/Int]
   (let [current-state (atom (.sample dist))
         samples (atom {@current-state 1})
@@ -128,7 +129,7 @@
   "Draws n values from the distribution."
   [dist
    n :- s/Int]
-  (if (extends? DistributionPGM (type dist))
+  (if (extends? PgmDistribution (type dist))
     (pgm-sampling dist n)
     ;(gibbs-sampling dist n)
     ;(metropolis-sampling dist n)
@@ -158,7 +159,7 @@
   [dist
    query?
    & {:keys [given? debug] :or {given? (fn [x] true) debug false}}]
-  (let [pgm? (extends? DistributionPGM (type dist))
+  (let [pgm? (extends? PgmDistribution (type dist))
         num-samples num-iterations
         all (sample dist num-samples)
         N (double (if pgm?
@@ -230,6 +231,30 @@
 (s/defn exponential :- ExponentialDistribution
   "Factory function to create a ExponentialDistribution"
   [p :- Double] (ExponentialDistribution. (new Random) p))
+
+(s/defrecord PoissonDistribution
+  [n :- s/Int]
+  Distribution
+  (sample [this] (.draw (d/poisson-distribution n))))
+
+(s/defn poisson :- PoissonDistribution
+  "Factory function to create a PoissonDistribution"
+  [n :- s/Int]
+  (:pre [(pos? n)])
+  (PoissonDistribution. n))
+
+(s/defrecord BinomialDistribution
+  [n :- s/Int
+   p :- Double]
+  Distribution
+  (sample [this] (.draw (d/binomial-distribution n p))))
+
+(s/defn binomial :- BinomialDistribution
+  "Factory function to create a BinomialDistribution"
+  [n :- s/Int
+   p :- Double]
+  (:pre [(and (pos? n) (pos? p))])
+  (BinomialDistribution. n p))
 
 ;; Distribution with random int uniformly distributed on [low, high].
 (s/defrecord DiscreteUniformDistribution
@@ -386,7 +411,7 @@
 
 (s/defrecord GrassDistribution
   []
-  DistributionPGM
+  PgmDistribution
 
   (state-prob
     [this state-map]

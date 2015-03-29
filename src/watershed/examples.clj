@@ -86,4 +86,12 @@
 (println "\nProb of rain and wet grass: (0.4581)\n" (prob g (every-pred (tf? :rain true) (tf? :wet-grass true))))
 (println "\nProb of sprinkler given wet grass: (0.4298)\n" (prob g (tf? :sprinkler true) :given? (tf? :wet-grass true)))
 (println "\nProb of sprinkler given wet grass and rain : (0.1945)\n" (prob g (tf? :sprinkler true) :given? (every-pred (tf? :rain true) (tf? :wet-grass true))))
+
+(def p (poisson 4))
+(println (.sample p))
+
+
+(def b (binomial 1 0.5))
+(println (.sample b))
+
 (System/exit 0)
