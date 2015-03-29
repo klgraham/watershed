@@ -2,7 +2,7 @@
   (:import (java.util Random)
            (java.lang Double Boolean))
   (:require [schema.core :as s]
-            )
+            [incanter.distributions :as d])
   (:use [clojure.core.match :only (match)]
         [taoensso.timbre :only (info)]))
 
@@ -231,6 +231,17 @@
 (s/defn exponential :- ExponentialDistribution
   "Factory function to create a ExponentialDistribution"
   [p :- Double] (ExponentialDistribution. (new Random) p))
+
+(s/defrecord PoissonDistribution
+  [n :- s/Int]
+  Distribution
+  (sample [this] (.draw (d/poisson-distribution n))))
+
+(s/defn poisson :- PoissonDistribution
+  "Factory function to create a PoissonDistribution"
+  [n :- s/Int]
+  (:pre [(pos? n)])
+  (PoissonDistribution. n))
 
 ;; Distribution with random int uniformly distributed on [low, high].
 (s/defrecord DiscreteUniformDistribution
