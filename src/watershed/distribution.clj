@@ -243,6 +243,19 @@
   (:pre [(pos? n)])
   (PoissonDistribution. n))
 
+(s/defrecord BinomialDistribution
+  [n :- s/Int
+   p :- Double]
+  Distribution
+  (sample [this] (.draw (d/binomial-distribution n p))))
+
+(s/defn binomial :- BinomialDistribution
+  "Factory function to create a BinomialDistribution"
+  [n :- s/Int
+   p :- Double]
+  (:pre [(and (pos? n) (pos? p))])
+  (BinomialDistribution. n p))
+
 ;; Distribution with random int uniformly distributed on [low, high].
 (s/defrecord DiscreteUniformDistribution
   [low :- s/Int
