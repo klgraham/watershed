@@ -64,6 +64,6 @@ straightforward. There are two PGM examples:
 
 ## License
 
-Copyright © 2015 Kenneth L. Graham
+Copyright © 2015 Kenneth Graham
 
 Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), same as Clojure.
